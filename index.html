@@ -292,17 +292,20 @@
 </head>
 <body>
 
-<!-- EKRAN LOGOWANIA -->
+<!-- EKRAN LOGOWANIA (Supabase Auth) -->
 <div id="loginGate" style="position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;background:linear-gradient(135deg,#1e293b,#0f172a)">
   <div style="background:#fff;border-radius:16px;padding:34px 30px;width:340px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.4);text-align:center">
     <div style="width:52px;height:52px;border-radius:12px;background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;font-weight:800;font-size:22px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px">F</div>
     <h2 style="margin:0 0 4px;font-size:19px;color:#111">FitbyMed CRM</h2>
-    <p style="margin:0 0 18px;color:#64748b;font-size:13px">Podaj hasło dostępu</p>
+    <p style="margin:0 0 18px;color:#64748b;font-size:13px">Zaloguj się</p>
+    <input id="gateEmail" type="email" placeholder="E-mail" autocomplete="username"
+      style="width:100%;box-sizing:border-box;padding:11px 13px;border:1px solid #d1d5db;border-radius:9px;font-size:15px;margin-bottom:9px"
+      onkeydown="if(event.key==='Enter'){document.getElementById('gatePass').focus()}">
     <input id="gatePass" type="password" placeholder="Hasło" autocomplete="current-password"
       style="width:100%;box-sizing:border-box;padding:11px 13px;border:1px solid #d1d5db;border-radius:9px;font-size:15px;margin-bottom:10px"
       onkeydown="if(event.key==='Enter')tryLogin()">
-    <div id="gateErr" style="display:none;color:#dc2626;font-size:12.5px;margin-bottom:10px">Błędne hasło</div>
-    <button onclick="tryLogin()" style="width:100%;padding:11px;border:0;border-radius:9px;background:#f97316;color:#fff;font-weight:700;font-size:15px;cursor:pointer">Wejdź</button>
+    <div id="gateErr" style="display:none;color:#dc2626;font-size:12.5px;margin-bottom:10px">Błędny e-mail lub hasło</div>
+    <button id="gateBtn" onclick="tryLogin()" style="width:100%;padding:11px;border:0;border-radius:9px;background:#f97316;color:#fff;font-weight:700;font-size:15px;cursor:pointer">Zaloguj</button>
   </div>
 </div>
 
@@ -471,18 +474,14 @@
 /* ============================================================
    KONFIGURACJA WBUDOWANA (hosting pod linkiem)
    ------------------------------------------------------------
-   URL + klucz anon Supabase są tu na stałe, żeby wchodzić tylko
-   na link (bez wklejania w ⚙︎). Klucz anon jest publiczny z natury.
-   BRAMA_HASLO = wspólne hasło dostępu (MVP do testów).
-   ⚠ UWAGA: to słaba ochrona — hasło jest widoczne w kodzie.
-   Przed wpuszczeniem prawdziwych danych: migracja na Supabase Auth.
+   URL + klucz anon Supabase są tu na stałe (klucz anon jest publiczny
+   z natury). Logowanie idzie przez Supabase Auth — hasła NIE MA w kodzie,
+   sprawdza je serwer. Dane chroni RLS (tylko zalogowani).
    ============================================================ */
 const BUILTIN = {
   url: 'https://eszpimgwyvsyskbmsunt.supabase.co',
   key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVzenBpbWd3eXZzeXNrYm1zdW50Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1NjIzNDksImV4cCI6MjA5ODEzODM0OX0.mIE5-BIcx7fYm1Wdp50yfPlmjol1GZ0iQhxxQWMgtCg'
 };
-const BRAMA_HASLO = 'Akubiak1!';
-const LS_AUTH = 'fbm_crm_auth_ok';
 
 const LS_DATA = 'fbm_crm_influencers';
 const LS_CFG  = 'fbm_crm_config';
@@ -580,7 +579,11 @@ function saveCache(){ localStorage.setItem(LS_DATA, JSON.stringify(state.influen
 
 function initSupabase(){
   if(config.url && config.key && window.supabase){
-    try{ sb = window.supabase.createClient(config.url, config.key); subscribeRealtime(); return true; }
+    try{
+      // użyj tego samego klienta co logowanie (niesie sesję zalogowanego -> RLS)
+      sb = (typeof getAuthClient==='function' && getAuthClient()) || window.supabase.createClient(config.url, config.key);
+      subscribeRealtime(); return true;
+    }
     catch(e){ sb=null; return false; }
   }
   sb=null; return false;
@@ -1281,33 +1284,59 @@ function boot(){
   loadAll();
 }
 
-/* ---------- Brama hasła (MVP) ---------- */
-function tryLogin(){
-  const v = ($('#gatePass')||{}).value || '';
-  if(v === BRAMA_HASLO){
-    try{ localStorage.setItem(LS_AUTH,'1'); }catch(e){}
+/* ============================================================
+   Logowanie przez Supabase Auth (hasło sprawdza serwer)
+   ============================================================ */
+let authClient = null;
+function getAuthClient(){
+  if(!authClient && window.supabase && config.url && config.key){
+    authClient = window.supabase.createClient(config.url, config.key);
+  }
+  return authClient;
+}
+
+async function tryLogin(){
+  const email = (($('#gateEmail')||{}).value || '').trim();
+  const pass  = ($('#gatePass')||{}).value || '';
+  const errEl = $('#gateErr'); const btn = $('#gateBtn');
+  if(errEl) errEl.style.display='none';
+  if(!email || !pass){ if(errEl){ errEl.textContent='Podaj e-mail i hasło'; errEl.style.display='block'; } return; }
+  const c = getAuthClient();
+  if(!c){ if(errEl){ errEl.textContent='Brak połączenia z serwerem'; errEl.style.display='block'; } return; }
+  if(btn){ btn.disabled=true; btn.textContent='Logowanie...'; }
+  try{
+    const { error } = await c.auth.signInWithPassword({ email, password: pass });
+    if(error) throw error;
     showApp();
-  } else {
-    const e=$('#gateErr'); if(e) e.style.display='block';
+  }catch(e){
+    if(errEl){ errEl.textContent='Błędny e-mail lub hasło'; errEl.style.display='block'; }
+  }finally{
+    if(btn){ btn.disabled=false; btn.textContent='Zaloguj'; }
   }
 }
-function logout(){
-  try{ localStorage.removeItem(LS_AUTH); }catch(e){}
+
+async function logout(){
+  try{ const c=getAuthClient(); if(c) await c.auth.signOut(); }catch(e){}
   location.reload();
 }
+
 function showApp(){
   const g=$('#loginGate'); if(g) g.style.display='none';
   document.body.style.overflow='';
   if(!window._booted){ window._booted=true; boot(); }
 }
-function startGate(){
-  let ok=false;
-  try{ ok = localStorage.getItem(LS_AUTH)==='1'; }catch(e){}
-  if(ok){ showApp(); }
+
+async function startGate(){
+  const c = getAuthClient();
+  let session = null;
+  if(c){
+    try{ const { data } = await c.auth.getSession(); session = data ? data.session : null; }catch(e){}
+  }
+  if(session){ showApp(); }
   else {
     const g=$('#loginGate'); if(g) g.style.display='flex';
     document.body.style.overflow='hidden';
-    setTimeout(()=>{ const p=$('#gatePass'); if(p) p.focus(); },50);
+    setTimeout(()=>{ const el=$('#gateEmail'); if(el) el.focus(); },50);
   }
 }
 startGate();
