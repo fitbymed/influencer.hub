@@ -752,10 +752,9 @@ function renderList(){
   const list = $('#list');
   if(!state.influencers.length){
     list.innerHTML = `<div class="empty"><div class="big">📇</div><h2>Brak influencerów</h2>
-      <p>Dodaj pierwszego albo wczytaj przykładowe dane, żeby zobaczyć jak to działa.</p>
+      <p>Dodaj pierwszego influencera, żeby zacząć.</p>
       <div style="display:flex;gap:8px;justify-content:center;margin-top:14px">
         <button class="btn btn-primary" data-action="add">+ Dodaj influencera</button>
-        <button class="btn" data-action="demo">Wczytaj przykład</button>
       </div></div>`;
     return;
   }
@@ -1039,7 +1038,6 @@ document.addEventListener('click', async e=>{
   const a = el.dataset.action, id = el.dataset.id;
   if(a==='open'){ openProfile(id); }
   else if(a==='add'){ openModal(null); }
-  else if(a==='demo'){ loadDemo(); }
   else if(a==='back'){ backToDashboard(); }
   else if(a==='seg'){ $('#c_dir').value = el.dataset.dir; el.parentElement.querySelectorAll('button').forEach(b=>b.classList.toggle('on', b===el)); }
   else if(a==='edit'){ openModal(state.influencers.find(x=>x.id===id)); }
@@ -1266,53 +1264,7 @@ async function saveAllToCloud(){
 }
 const _saveBtn=$('#saveCloudBtn'); if(_saveBtn) _saveBtn.onclick = saveAllToCloud;
 
-/* ============================================================
-   Dane przykładowe
-   ============================================================ */
-async function loadDemo(){
-  const now=new Date().toISOString();
-  const dz=o=>{ const d=new Date(); d.setDate(d.getDate()-o); return d.toISOString().slice(0,10); };
-  const demo=[
-    {id:uid(),name:'fit.kasia',realName:'Katarzyna Nowak',email:'kasia@example.com',phone:'+48 600 100 200',status:'wspolpraca',niche:'Fitness',
-     tags:['siłownia','dieta','mama'],discountCode:'KASIA10',sales:124,salesUpdated:now,
-     orders:[
-       {id:uid(),date:dz(9),product:'Depilator IPL T19B',qty:2,amount:1198,commission:120},
-       {id:uid(),date:dz(7),product:'Depilator IPL T19B',qty:1,amount:599,commission:60},
-       {id:uid(),date:dz(5),product:'Maska LED SKB-2318',qty:1,amount:399,commission:40},
-       {id:uid(),date:dz(3),product:'Depilator IPL T19B',qty:3,amount:1797,commission:180},
-       {id:uid(),date:dz(2),product:'Maska LED SKB-2318',qty:2,amount:798,commission:80},
-       {id:uid(),date:dz(0),product:'Depilator IPL T19B',qty:1,amount:599,commission:60}],
-     socials:{instagram:'https://instagram.com/fit.kasia',tiktok:'https://tiktok.com/@fit.kasia',facebook:'https://facebook.com/fit.kasia'},
-     reach:{instagram:48200,tiktok:91000,facebook:14000},brief:'Trening w domu i odchudzanie po ciąży. Odbiorcy: kobiety 25-40. Świetne dopasowanie pod bieżnię i IPL.',
-     rates:'900 zł / rolka + barter',nextStepText:'Rozliczyć sprzedaż z kodu za czerwiec',nextStepDate:todayISO(),
-     notes:'Bardzo profesjonalna, szybko odpisuje.',created:now,updated:now,
-     threads:[
-       {id:uid(),subject:'Propozycja współpracy FitbyMed',created:now,updated:now,messages:[
-         {id:uid(),direction:'out',date:todayISO(),body:'Cześć Kasiu, piszemy z FitbyMed — chcielibyśmy zaproponować współpracę przy depilatorze IPL.',attachments:[{name:'oferta_fitbymed.pdf',size:284000}],created:now},
-         {id:uid(),direction:'in',date:todayISO(),body:'Hej! Chętnie, poproszę o szczegóły i przykładowy produkt.',attachments:[],created:now}]},
-       {id:uid(),subject:'Rozliczenie kodu KASIA10',created:now,updated:now,messages:[
-         {id:uid(),direction:'out',date:todayISO(),body:'Podsyłam zestawienie sprzedaży z Twojego kodu za czerwiec.',attachments:[],created:now}]}]},
-    {id:uid(),name:'beauty.ania',realName:'Anna Lis',email:'ania@example.com',phone:'+48 511 222 333',status:'negocjacje',niche:'Beauty',
-     tags:['skincare','makijaż'],discountCode:'ANIA15',sales:42,salesUpdated:now,
-     orders:[
-       {id:uid(),date:dz(6),product:'Maska LED SKB-2318',qty:1,amount:399,commission:40},
-       {id:uid(),date:dz(2),product:'Maska LED SKB-2318',qty:1,amount:399,commission:40}],
-     socials:{instagram:'https://instagram.com/beauty.ania',youtube:'https://youtube.com/@beautyania',facebook:'https://facebook.com/beauty.ania'},
-     reach:{instagram:120000,youtube:35000,facebook:28000},brief:'Pielęgnacja skóry i urządzenia beauty-tech. Idealna pod maskę LED.',
-     rates:'do ustalenia',nextStepText:'Ustalić warunki i wysłać umowę',nextStepDate:'',notes:'',created:now,updated:now,
-     threads:[{id:uid(),subject:'Współpraca — maska LED',created:now,updated:now,messages:[
-        {id:uid(),direction:'out',date:todayISO(),body:'Dzień dobry, chcielibyśmy zaproponować współpracę przy masce LED.',attachments:[],created:now}]}]},
-    {id:uid(),name:'marek.trenuje',realName:'Marek Wójcik',email:'',phone:'',status:'weryfikacja',niche:'Sport / siła',
-     tags:['trening','suplementacja'],discountCode:'',sales:0,
-     socials:{instagram:'https://instagram.com/marek.trenuje',tiktok:'https://tiktok.com/@marek.trenuje'},
-     reach:{instagram:22000,tiktok:60000},brief:'Trening siłowy, męska grupa odbiorców. Potencjał pod bieżnię.',
-     rates:'',nextStepText:'Znaleźć kontakt mailowy',nextStepDate:todayISO(),notes:'Znaleziony przez hashtag #treningwdomu',created:now,updated:now,threads:[]},
-  ];
-  state.influencers = demo.concat(state.influencers);
-  saveCache();
-  if(sb){ for(const inf of demo){ await persistUpsert(inf); } }
-  renderAll(); toast('Wczytano przykładowe dane');
-}
+/* Dane przykładowe usunięte — CRM pracuje wyłącznie na prawdziwych danych. */
 
 /* ============================================================
    Start
