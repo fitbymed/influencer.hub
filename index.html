@@ -451,6 +451,7 @@
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-sm" id="exportBtn">⬇ Eksportuj dane (JSON)</button>
         <button class="btn btn-sm" id="importBtn">⬆ Importuj z pliku</button>
+        <button class="btn btn-sm btn-primary" id="saveCloudBtn" style="display:none">💾 Zapisz do chmury</button>
         <input type="file" id="importFile" accept="application/json" style="display:none">
         <input type="file" id="attachInput" multiple style="display:none">
         <input type="file" id="csvInput" accept=".csv,text/csv" style="display:none">
@@ -533,6 +534,17 @@ create policy "crm_all" on influencers
 let state = { influencers: [], filterStatus:'', openId:null, openThread:null };
 let config = { url: BUILTIN.url || '', key: BUILTIN.key || '' };
 let sb = null, channel = null, uiBusy = false, pendingReload = false;
+
+/* JEDEN współdzielony klient Supabase — używany i przez logowanie (auth),
+   i przez zapis/odczyt danych. Dzięki temu zapisy niosą sesję zalogowanego
+   użytkownika i przechodzą przez RLS. Tworzony raz, na samym początku. */
+let _client = null;
+function client(){
+  if(!_client && window.supabase && config.url && config.key){
+    _client = window.supabase.createClient(config.url, config.key);
+  }
+  return _client;
+}
 let pendingAttach = [];
 const ATT_MAX = 1024*1024; // do 1 MB plik osadzamy lokalnie; większe = tylko nazwa (realny transfer przy podłączeniu maila)
 
@@ -581,15 +593,9 @@ function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('sh
 function saveCache(){ localStorage.setItem(LS_DATA, JSON.stringify(state.influencers)); }
 
 function initSupabase(){
-  if(config.url && config.key && window.supabase){
-    try{
-      // użyj tego samego klienta co logowanie (niesie sesję zalogowanego -> RLS)
-      sb = (typeof getAuthClient==='function' && getAuthClient()) || window.supabase.createClient(config.url, config.key);
-      subscribeRealtime(); return true;
-    }
-    catch(e){ sb=null; return false; }
-  }
-  sb=null; return false;
+  sb = client();           // ten sam klient co logowanie -> niesie sesję -> RLS OK
+  if(sb){ subscribeRealtime(); return true; }
+  return false;
 }
 
 function subscribeRealtime(){
@@ -638,7 +644,7 @@ async function persistUpsert(inf){
   saveCache();
   if(sb){
     try{ const {error}=await sb.from('influencers').upsert({id:inf.id, data:inf, updated_at:inf.updated}); if(error) throw error; }
-    catch(e){ toast('⚠ Błąd zapisu w chmurze'); }
+    catch(e){ console.error('Zapis w chmurze nieudany:', e); toast('⚠ Błąd zapisu w chmurze: '+(e&&e.message?e.message:'sprawdź logowanie')); }
   }
 }
 async function persistDelete(id){
@@ -1230,16 +1236,35 @@ $('#importBtn').onclick = ()=>$('#importFile').click();
 $('#importFile').onchange = e=>{
   const f=e.target.files[0]; if(!f) return;
   const r=new FileReader();
-  r.onload = async ()=>{
+  r.onload = ()=>{
     try{
       const arr=JSON.parse(r.result); if(!Array.isArray(arr)) throw 0;
-      state.influencers=arr; saveCache();
-      if(sb){ for(const inf of arr){ await sb.from('influencers').upsert({id:inf.id, data:inf, updated_at:new Date().toISOString()}); } }
-      renderAll(); toast(`Zaimportowano ${arr.length} wpisów`);
+      // wczytaj do widoku (lokalnie) — zapis do chmury osobnym przyciskiem "Zapisz do chmury"
+      state.influencers=arr; saveCache(); renderAll();
+      const btn=$('#saveCloudBtn'); if(btn){ btn.style.display='inline-flex'; btn.textContent=`💾 Zapisz ${arr.length} do chmury`; }
+      toast(`Wczytano ${arr.length} wpisów — kliknij „Zapisz do chmury”`);
     }catch(err){ toast('Nieprawidłowy plik JSON'); }
   };
   r.readAsText(f); e.target.value='';
 };
+
+/* Jawny zapis całej listy do chmury — z raportem błędów (RLS itp.) */
+async function saveAllToCloud(){
+  const c = client();
+  if(!c){ toast('⚠ Brak połączenia z chmurą — zaloguj się'); return; }
+  const btn=$('#saveCloudBtn'); if(btn){ btn.disabled=true; btn.textContent='Zapisywanie...'; }
+  let ok=0, fail=0, firstErr='';
+  for(const inf of state.influencers){
+    try{
+      const {error}=await c.from('influencers').upsert({id:inf.id, data:inf, updated_at:new Date().toISOString()});
+      if(error) throw error; ok++;
+    }catch(e){ fail++; if(!firstErr) firstErr=(e&&e.message)||'błąd'; console.error('Zapis nieudany:', e); }
+  }
+  if(btn){ btn.disabled=false; btn.textContent=`💾 Zapisz do chmury`; }
+  if(fail===0){ toast(`✅ Zapisano ${ok} wpisów do chmury`); }
+  else { toast(`⚠ Zapisano ${ok}, błędów ${fail}: ${firstErr}`); }
+}
+const _saveBtn=$('#saveCloudBtn'); if(_saveBtn) _saveBtn.onclick = saveAllToCloud;
 
 /* ============================================================
    Dane przykładowe
@@ -1306,13 +1331,7 @@ function boot(){
 /* ============================================================
    Logowanie przez Supabase Auth (hasło sprawdza serwer)
    ============================================================ */
-let authClient = null;
-function getAuthClient(){
-  if(!authClient && window.supabase && config.url && config.key){
-    authClient = window.supabase.createClient(config.url, config.key);
-  }
-  return authClient;
-}
+function getAuthClient(){ return client(); }
 
 async function tryLogin(){
   const email = (($('#gateEmail')||{}).value || '').trim();
