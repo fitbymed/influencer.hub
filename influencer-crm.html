@@ -1,0 +1,1254 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FitbyMed · CRM Influencerów</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --orange:#F26419; --orange-dk:#D94E10; --orange-lt:#FFF1E9;
+    --bg:#F6F7F9; --card:#FFFFFF; --ink:#1F2937; --muted:#6B7280;
+    --line:#E8EAED; --line-dk:#D9DCE1;
+    --shadow:0 1px 3px rgba(16,24,40,.06), 0 1px 2px rgba(16,24,40,.04);
+    --shadow-lg:0 12px 40px rgba(16,24,40,.16);
+    --radius:14px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg); color:var(--ink); font-size:14px; line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  button{font-family:inherit;cursor:pointer}
+  input,select,textarea{font-family:inherit;font-size:14px}
+  a{color:var(--orange);text-decoration:none}
+
+  /* ---------- Topbar ---------- */
+  .topbar{
+    position:sticky;top:0;z-index:30;background:#fff;border-bottom:1px solid var(--line);
+    display:flex;align-items:center;gap:14px;padding:10px 20px;flex-wrap:wrap;
+  }
+  .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:16px;letter-spacing:-.2px}
+  .logo{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--orange),#FF8A4C);
+        display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:15px;flex-shrink:0}
+  .brand small{font-weight:600;color:var(--muted);font-size:12px}
+  .search{flex:1;min-width:180px;position:relative}
+  .search input{width:100%;padding:9px 12px 9px 34px;border:1px solid var(--line-dk);border-radius:10px;background:#fff;outline:none}
+  .search input:focus{border-color:var(--orange);box-shadow:0 0 0 3px var(--orange-lt)}
+  .search svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--muted)}
+  .top-actions{display:flex;align-items:center;gap:8px}
+
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:9px 14px;border-radius:10px;border:1px solid var(--line-dk);
+       background:#fff;color:var(--ink);font-weight:600;font-size:13px;white-space:nowrap;transition:.12s}
+  .btn:hover{background:#fafafa}
+  .btn-primary{background:var(--orange);border-color:var(--orange);color:#fff}
+  .btn-primary:hover{background:var(--orange-dk)}
+  .btn-ghost{border-color:transparent;background:transparent}
+  .btn-ghost:hover{background:#f1f2f4}
+  .btn-danger{color:#DC2626;border-color:#F3C9C9}
+  .btn-danger:hover{background:#FEF2F2}
+  .btn-sm{padding:6px 10px;font-size:12px}
+
+  .conn-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 11px;border-radius:999px;
+             font-size:12px;font-weight:600;border:1px solid var(--line-dk);background:#fff}
+  .dot{width:8px;height:8px;border-radius:50%;background:#9CA3AF}
+  .dot.on{background:#16A34A;box-shadow:0 0 0 3px rgba(22,163,74,.18)}
+
+  /* ---------- Layout ---------- */
+  .wrap{max-width:1180px;margin:0 auto;padding:22px 20px 80px}
+
+  .pipeline{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+  .stat{flex:1;min-width:120px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+        padding:12px 14px;box-shadow:var(--shadow);cursor:pointer;transition:.12s;position:relative;overflow:hidden}
+  .stat:hover{border-color:var(--line-dk);transform:translateY(-1px)}
+  .stat.active{border-color:var(--orange);box-shadow:0 0 0 2px var(--orange-lt)}
+  .stat .num{font-size:24px;font-weight:800;line-height:1}
+  .stat .lbl{font-size:12px;color:var(--muted);margin-top:5px;font-weight:600}
+  .stat .bar{position:absolute;left:0;top:0;bottom:0;width:4px}
+
+  .attention{background:#fff;border:1px solid var(--line);border-left:4px solid var(--orange);
+             border-radius:var(--radius);padding:14px 16px;margin-bottom:18px;box-shadow:var(--shadow)}
+  .attention h3{margin:0 0 10px;font-size:13px;display:flex;align-items:center;gap:8px}
+  .att-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px}
+  .att-card{border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer;background:#fff;transition:.12s}
+  .att-card:hover{border-color:var(--orange);background:var(--orange-lt)}
+  .att-card .nm{font-weight:700}
+  .att-card .ns{font-size:12px;color:var(--muted);margin-top:2px}
+  .att-date{font-size:11px;font-weight:700;margin-top:6px}
+  .att-overdue{color:#DC2626}.att-today{color:var(--orange-dk)}
+
+  .toolbar{display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+  .toolbar select{padding:8px 11px;border:1px solid var(--line-dk);border-radius:9px;background:#fff}
+  .toolbar .grow{flex:1}
+  .count{font-size:12px;color:var(--muted);font-weight:600}
+
+  /* ---------- List ---------- */
+  .list{display:flex;flex-direction:column;gap:8px}
+  .row{display:flex;align-items:center;gap:14px;background:var(--card);border:1px solid var(--line);
+       border-radius:var(--radius);padding:12px 16px;box-shadow:var(--shadow);cursor:pointer;transition:.12s}
+  .row:hover{border-color:var(--line-dk);transform:translateY(-1px);box-shadow:0 4px 14px rgba(16,24,40,.08)}
+  .avatar{width:44px;height:44px;border-radius:11px;display:flex;align-items:center;justify-content:center;
+          color:#fff;font-weight:800;font-size:15px;flex-shrink:0}
+  .row-main{flex:1;min-width:0}
+  .row-name{font-weight:700;font-size:15px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .row-sub{color:var(--muted);font-size:12.5px;margin-top:2px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .tags{display:flex;gap:5px;flex-wrap:wrap}
+  .tag{background:#F1F2F4;color:#4B5563;border-radius:6px;padding:2px 7px;font-size:11px;font-weight:600}
+  .badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;font-size:11.5px;font-weight:700;white-space:nowrap}
+  .row-right{display:flex;flex-direction:column;align-items:flex-end;gap:6px;text-align:right;flex-shrink:0}
+  .reach{font-size:12px;color:var(--muted);font-weight:600}
+  .reach b{color:var(--ink)}
+  .plat-pills{display:flex;gap:4px}
+  .pp{font-size:9.5px;font-weight:800;background:#EEF0F2;color:#6B7280;border-radius:5px;padding:2px 5px;letter-spacing:.3px}
+  .row-meta{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-top:6px;font-size:12px;color:var(--muted)}
+  .row-meta .mi{display:inline-flex;align-items:center;gap:4px}
+  .kod{background:var(--orange-lt);color:var(--orange-dk);border:1px solid #FAD9C5;border-radius:6px;
+       padding:2px 8px;font-weight:800;font-size:11px;letter-spacing:.3px}
+  .reach-split{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+  .rs{display:flex;flex-direction:column;align-items:flex-end;line-height:1.15}
+  .rs b{font-size:13.5px;color:var(--ink)}
+  .rs span{font-size:9.5px;font-weight:800;color:#9CA3AF;letter-spacing:.5px}
+  .sales-pill{font-size:12px;font-weight:700;color:#166534;background:#DCFCE7;border-radius:7px;padding:3px 9px}
+  .no-sale{font-size:12px;font-weight:600;color:#9CA3AF}
+  .muted-mini{font-size:12px;color:var(--muted)}
+  /* panel sprzedaży */
+  .kpis3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px}
+  .kpi{background:#FAFAFB;border:1px solid var(--line);border-radius:10px;padding:10px 12px;text-align:center}
+  .kv-num{font-size:17px;font-weight:800;line-height:1.15}
+  .kv-lbl{font-size:11px;color:var(--muted);font-weight:600;margin-top:3px}
+  .chart-title{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:800;margin-bottom:8px}
+  .chart{display:flex;align-items:flex-end;gap:3px;height:96px;padding:4px 2px;background:#FAFAFB;border:1px solid var(--line);border-radius:10px}
+  .bar-wrap{flex:1;min-width:3px;height:100%;display:flex;align-items:flex-end}
+  .bar{width:100%;background:var(--orange);border-radius:3px 3px 0 0;transition:.1s}
+  .bar-wrap:hover .bar{background:var(--orange-dk)}
+  .chart-x{display:flex;justify-content:space-between;font-size:10.5px;color:var(--muted);margin-top:5px}
+  .prodtable{display:flex;flex-direction:column;gap:5px}
+  .prow{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;border:1px solid var(--line);
+        border-radius:9px;padding:8px 11px;font-size:13px}
+  .prow .pname{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .prow .pqty{color:var(--muted);font-weight:600;font-size:12px}
+  .prow .pamt{font-weight:800;color:#166534}
+
+  .empty{text-align:center;padding:60px 20px;color:var(--muted)}
+  .empty .big{font-size:40px;margin-bottom:8px}
+  .empty h2{color:var(--ink);margin:0 0 6px;font-size:18px}
+
+  /* ---------- Metryki (pasek u góry dashboardu) ---------- */
+  .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+  .metric{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+          padding:14px 16px;box-shadow:var(--shadow)}
+  .metric .mtop{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .metric .mv{font-size:24px;font-weight:800;line-height:1}
+  .metric .ml{font-size:12px;color:var(--muted);margin-top:7px;font-weight:600}
+  .metric .badge-ic{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;
+                    justify-content:center;font-size:17px;flex-shrink:0}
+
+  /* ---------- Pełny ekran profilu ---------- */
+  .profile-page{max-width:1180px;margin:0 auto;padding:18px 20px 80px;display:none}
+  .profile-page.show{display:block;animation:fadeIn .18s ease}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .back-bar{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+  .profile-hero{background:#fff;border:1px solid var(--line);border-radius:var(--radius);
+                box-shadow:var(--shadow);padding:20px 22px;display:flex;gap:18px;align-items:flex-start;margin-bottom:16px}
+  .profile-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:16px;align-items:start}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:var(--radius);
+         box-shadow:var(--shadow);padding:18px 20px;margin-bottom:16px}
+  .panel:last-child{margin-bottom:0}
+  .panel-title{font-size:13px;font-weight:800;margin:0 0 14px;display:flex;align-items:center;gap:7px}
+  @media(max-width:860px){.profile-grid{grid-template-columns:1fr}}
+
+  /* ---------- Overlay / Slide-over ---------- */
+  .overlay{position:fixed;inset:0;background:rgba(17,24,39,.45);z-index:40;opacity:0;pointer-events:none;transition:.18s}
+  .overlay.show{opacity:1;pointer-events:auto}
+  .detail{position:fixed;top:0;right:0;bottom:0;width:560px;max-width:94vw;background:#fff;z-index:50;
+          box-shadow:var(--shadow-lg);transform:translateX(100%);transition:transform .22s ease;
+          display:flex;flex-direction:column}
+  .detail.show{transform:translateX(0)}
+  .detail-head{padding:18px 20px;border-bottom:1px solid var(--line);display:flex;gap:14px;align-items:flex-start}
+  .detail-body{overflow-y:auto;padding:18px 20px;flex:1}
+  .detail h1{font-size:20px;margin:0;line-height:1.2}
+  .detail .handle{color:var(--muted);font-size:13px;margin-top:3px}
+
+  .sec{margin-bottom:22px}
+  .sec h4{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin:0 0 9px}
+  .socials{display:flex;flex-wrap:wrap;gap:8px}
+  .social-btn{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line-dk);border-radius:10px;
+              padding:8px 12px;font-weight:600;font-size:13px;color:var(--ink);background:#fff}
+  .social-btn:hover{border-color:var(--orange);background:var(--orange-lt)}
+  .social-btn .ic{width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;
+                  color:#fff;font-size:10px;font-weight:800}
+  .kv{display:grid;grid-template-columns:120px 1fr;gap:6px 12px;font-size:13.5px}
+  .kv .k{color:var(--muted);font-weight:600}
+  .prose{white-space:pre-wrap;font-size:13.5px;background:#FAFAFB;border:1px solid var(--line);border-radius:10px;padding:11px 13px}
+
+  /* contact log */
+  .clog-add{background:#FAFAFB;border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:14px}
+  .clog-add .r{display:flex;gap:8px;margin-bottom:8px}
+  .clog-add select,.clog-add input,.clog-add textarea{width:100%;padding:8px 10px;border:1px solid var(--line-dk);border-radius:8px;outline:none}
+  .clog-add textarea{resize:vertical;min-height:64px}
+  .clog-add :focus{border-color:var(--orange)}
+  .timeline{display:flex;flex-direction:column;gap:10px}
+  .cli{border:1px solid var(--line);border-radius:11px;padding:11px 13px;position:relative}
+  .cli-head{display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:5px}
+  .cli-dir{font-weight:800;padding:2px 8px;border-radius:6px;font-size:11px}
+  .cli-date{color:var(--muted)}
+  .cli-subj{font-weight:700;font-size:13.5px;margin-bottom:3px}
+  .cli-body{white-space:pre-wrap;font-size:13px;color:#374151}
+  .cli-del{position:absolute;top:9px;right:9px;border:none;background:none;color:#B0B4BB;font-size:16px;line-height:1;padding:2px 6px;border-radius:6px}
+  .cli-del:hover{background:#FEF2F2;color:#DC2626}
+
+  /* ---------- Czat (dymki) ---------- */
+  .chat-src{font-size:10.5px;font-weight:700;color:var(--muted);background:#F1F2F4;border-radius:999px;padding:3px 9px;letter-spacing:.2px}
+  .chat{display:flex;flex-direction:column;gap:8px;max-height:440px;overflow-y:auto;padding:6px 2px 4px}
+  .bub{max-width:82%;border-radius:14px;padding:8px 12px;position:relative}
+  .bub .s{font-weight:800;font-size:12.5px;margin-bottom:2px}
+  .bub .b{font-size:13px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+  .bub .t{font-size:10px;color:var(--muted);text-align:right;margin-top:4px}
+  .bub.out{align-self:flex-end;background:var(--orange-lt);border:1px solid #FAD9C5;border-bottom-right-radius:5px}
+  .bub.in{align-self:flex-start;background:#fff;border:1px solid var(--line);border-bottom-left-radius:5px}
+  .bub-sys{align-self:center;max-width:90%;text-align:center;background:#FEF3C7;color:#92400E;border-radius:10px;
+           padding:5px 12px;font-size:11.5px;font-weight:600;position:relative}
+  .bub .del{position:absolute;top:3px;right:5px;border:none;background:none;color:#B0B4BB;font-size:14px;line-height:1;
+            cursor:pointer;opacity:0;transition:.12s;padding:0 4px}
+  .bub:hover .del,.bub-sys:hover .del{opacity:1}
+  .composer{margin-top:14px;border:1px solid var(--line);border-radius:12px;padding:10px;background:#FAFAFB}
+  .composer .row1{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+  .composer #c_date{margin-left:auto;padding:6px 8px;border:1px solid var(--line-dk);border-radius:8px;outline:none}
+  .composer #c_subject{width:100%;border:1px solid var(--line-dk);border-radius:8px;padding:7px 10px;margin-bottom:8px;outline:none}
+  .composer textarea{width:100%;border:1px solid var(--line-dk);border-radius:8px;padding:8px 10px;resize:vertical;min-height:56px;outline:none}
+  .composer :focus{border-color:var(--orange)}
+  .seg{display:inline-flex;border:1px solid var(--line-dk);border-radius:8px;overflow:hidden}
+  .seg button{border:none;background:#fff;padding:6px 11px;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer}
+  .seg button+button{border-left:1px solid var(--line-dk)}
+  .seg button.on{background:var(--orange);color:#fff}
+
+  /* ---------- Lista wątków e-mail ---------- */
+  .threads{display:flex;flex-direction:column;gap:6px;max-height:520px;overflow-y:auto}
+  .thread-row{display:flex;align-items:center;gap:11px;border:1px solid var(--line);border-radius:11px;
+              padding:11px 13px;cursor:pointer;transition:.12s;background:#fff}
+  .thread-row:hover{border-color:var(--orange);background:var(--orange-lt)}
+  .th-ic{width:34px;height:34px;border-radius:9px;background:#EEF2FF;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+  .th-subj{font-weight:700;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .th-prev{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+  .th-meta{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0;font-size:11px;color:var(--muted)}
+  .th-cnt{background:#EEF0F2;color:#4B5563;border-radius:999px;min-width:18px;height:18px;display:flex;
+          align-items:center;justify-content:center;padding:0 6px;font-weight:800}
+
+  /* ---------- Załączniki ---------- */
+  .atts{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px}
+  .pending{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .att{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--line-dk);
+       border-radius:8px;padding:4px 9px;font-size:11.5px;font-weight:600;color:var(--ink);text-decoration:none}
+  .att span{color:var(--muted);font-weight:600}
+  a.att:hover{border-color:var(--orange);background:var(--orange-lt)}
+  .att-meta{opacity:.7}
+  .att button{border:none;background:none;color:#B0B4BB;font-size:14px;line-height:1;cursor:pointer;padding:0 2px}
+  .att button:hover{color:#DC2626}
+
+  /* ---------- Modal ---------- */
+  .modal{position:fixed;inset:0;z-index:60;display:none;align-items:flex-start;justify-content:center;
+         padding:40px 16px;overflow-y:auto}
+  .modal.show{display:flex}
+  .modal-card{background:#fff;border-radius:18px;box-shadow:var(--shadow-lg);width:100%;max-width:620px;
+              padding:22px 24px;animation:pop .18s ease}
+  @keyframes pop{from{transform:translateY(10px) scale(.98);opacity:0}to{transform:none;opacity:1}}
+  .modal-card h2{margin:0 0 18px;font-size:18px}
+  .modal-foot{display:flex;justify-content:flex-end;gap:8px;margin-top:8px;padding-top:16px;border-top:1px solid var(--line)}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 14px}
+  .field{display:flex;flex-direction:column;gap:5px}
+  .field.full{grid-column:1/-1}
+  .field label{font-size:12px;font-weight:700;color:#4B5563}
+  .field input,.field select,.field textarea{padding:9px 11px;border:1px solid var(--line-dk);border-radius:9px;outline:none;width:100%}
+  .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--orange);box-shadow:0 0 0 3px var(--orange-lt)}
+  .field textarea{resize:vertical;min-height:70px}
+  .subhead{grid-column:1/-1;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);
+           font-weight:800;margin-top:6px;border-top:1px dashed var(--line);padding-top:12px}
+  .three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  .four{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+
+  .code{background:#0F172A;color:#CBD5E1;border-radius:10px;padding:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+        font-size:11.5px;white-space:pre-wrap;max-height:200px;overflow:auto;line-height:1.5}
+  .steps{font-size:13px;padding-left:18px;margin:8px 0}
+  .steps li{margin-bottom:6px}
+  .note{font-size:12px;color:var(--muted);background:var(--orange-lt);border-radius:9px;padding:9px 12px;border:1px solid #FAD9C5}
+
+  /* ---------- Toast ---------- */
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:#111827;color:#fff;
+         padding:11px 18px;border-radius:10px;font-weight:600;font-size:13px;z-index:90;opacity:0;transition:.2s;pointer-events:none}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  @media(max-width:640px){
+    .form-grid{grid-template-columns:1fr}
+    .three{grid-template-columns:1fr}
+    .four{grid-template-columns:1fr 1fr}
+    .metrics{grid-template-columns:1fr 1fr}
+    .row-right{display:none}
+    .wrap{padding:16px 14px 80px}
+    .stat{min-width:calc(50% - 4px);flex:none}
+  }
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="brand">
+    <div class="logo">F</div>
+    <div>FitbyMed <small>· CRM Influencerów</small></div>
+  </div>
+  <div class="search">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+    <input id="search" placeholder="Szukaj: nazwa, nisza, tag, @handle...">
+  </div>
+  <div class="top-actions">
+    <span id="connPill" class="conn-pill"><span id="connDot" class="dot"></span><span id="connText">Tryb lokalny</span></span>
+    <button class="btn btn-ghost btn-sm" id="settingsBtn" title="Ustawienia i chmura">⚙︎</button>
+    <button class="btn btn-primary" id="addBtn">+ Influencer</button>
+  </div>
+</div>
+
+<main id="dashboard" class="wrap">
+  <div class="metrics" id="metrics"></div>
+  <div class="pipeline" id="pipeline"></div>
+  <div id="attention"></div>
+
+  <div class="toolbar">
+    <select id="fStatus"><option value="">Wszystkie statusy</option></select>
+    <select id="fPlatform">
+      <option value="">Każda platforma</option>
+      <option value="instagram">Instagram</option>
+      <option value="tiktok">TikTok</option>
+      <option value="youtube">YouTube</option>
+      <option value="facebook">Facebook</option>
+      <option value="website">WWW / blog</option>
+    </select>
+    <select id="fSold">
+      <option value="">Sprzedaż: wszyscy</option>
+      <option value="yes">✅ Sprzedali</option>
+      <option value="no">❌ Nie sprzedali</option>
+    </select>
+    <select id="sortBy">
+      <option value="revenue">Sortuj: największy obrót</option>
+      <option value="recent">Sortuj: ostatnio zmienione</option>
+      <option value="name">Sortuj: alfabetycznie</option>
+      <option value="reach">Sortuj: największy zasięg</option>
+      <option value="next">Sortuj: najbliższy krok</option>
+    </select>
+    <span class="grow"></span>
+    <button class="btn btn-sm" id="csvBtn">📥 Sprzedaż z GoAffPro (CSV)</button>
+    <span class="count" id="count"></span>
+  </div>
+
+  <div class="list" id="list"></div>
+</main>
+
+<!-- PEŁNY EKRAN PROFILU -->
+<section id="profile" class="profile-page"></section>
+
+<!-- INFLUENCER MODAL -->
+<div class="modal" id="modal">
+  <div class="modal-card">
+    <h2 id="modalTitle">Nowy influencer</h2>
+    <form id="form">
+      <input type="hidden" id="f_id">
+      <div class="form-grid">
+        <div class="field"><label>Pseudonim / nazwa *</label><input id="f_name" required placeholder="np. fit.kasia"></div>
+        <div class="field"><label>Imię i nazwisko</label><input id="f_realName" placeholder="Katarzyna Nowak"></div>
+        <div class="field"><label>Email (do pisania maili)</label><input id="f_email" type="email" placeholder="kontakt@..."></div>
+        <div class="field"><label>Telefon</label><input id="f_phone" placeholder="+48 ..."></div>
+        <div class="field"><label>Status</label><select id="f_status"></select></div>
+        <div class="field"><label>Nisza</label><input id="f_niche" placeholder="Fitness / Beauty / Lifestyle"></div>
+        <div class="field full"><label>Tagi (po przecinku)</label><input id="f_tags" placeholder="siłownia, dieta, mama"></div>
+
+        <div class="subhead">Kod rabatowy i sprzedaż</div>
+        <div class="field"><label>Kod rabatowy</label><input id="f_discount" placeholder="np. KASIA10"></div>
+        <div class="field"><label>Ilość sprzedaży z kodu (szt.)</label><input id="f_sales" type="number" min="0" placeholder="0"></div>
+
+        <div class="subhead">Linki social media</div>
+        <div class="field"><label>Instagram</label><input id="f_ig" placeholder="https://instagram.com/..."></div>
+        <div class="field"><label>TikTok</label><input id="f_tt" placeholder="https://tiktok.com/@..."></div>
+        <div class="field"><label>YouTube</label><input id="f_yt" placeholder="https://youtube.com/@..."></div>
+        <div class="field"><label>Facebook</label><input id="f_fb" placeholder="https://facebook.com/..."></div>
+        <div class="field full"><label>WWW / blog</label><input id="f_web" placeholder="https://..."></div>
+
+        <div class="subhead">Zasięgi (liczba obserwujących)</div>
+        <div class="field full"><div class="four">
+          <div class="field"><label>Instagram</label><input id="f_rIg" type="number" min="0" placeholder="0"></div>
+          <div class="field"><label>TikTok</label><input id="f_rTt" type="number" min="0" placeholder="0"></div>
+          <div class="field"><label>Facebook</label><input id="f_rFb" type="number" min="0" placeholder="0"></div>
+          <div class="field"><label>YouTube</label><input id="f_rYt" type="number" min="0" placeholder="0"></div>
+        </div></div>
+
+        <div class="subhead">Brief i ustalenia</div>
+        <div class="field full"><label>Brief — czym się zajmuje</label><textarea id="f_brief" placeholder="Krótki opis: o czym tworzy, jaka grupa odbiorców, do których produktów pasuje..."></textarea></div>
+        <div class="field"><label>Stawki / warunki</label><input id="f_rates" placeholder="np. 800 zł / rolka + barter"></div>
+        <div class="field"><label>Następny krok — termin</label><input id="f_nextDate" type="date"></div>
+        <div class="field full"><label>Następny krok — co zrobić</label><input id="f_nextText" placeholder="np. wysłać próbkę IPL, dopiąć termin publikacji"></div>
+        <div class="field full"><label>Notatki wewnętrzne</label><textarea id="f_notes" placeholder="Cokolwiek ważnego..."></textarea></div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" id="cancelBtn">Anuluj</button>
+        <button type="submit" class="btn btn-primary">Zapisz</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="modal" id="settingsModal">
+  <div class="modal-card">
+    <h2>Ustawienia · Wspólna chmura</h2>
+    <p style="margin-top:-8px;color:var(--muted);font-size:13px">Podłącz darmowy Supabase, żeby Ty i żona widzieli te same dane na każdym urządzeniu. Bez tego aplikacja działa lokalnie (dane tylko w tej przeglądarce).</p>
+
+    <div class="sec">
+      <h4>Status połączenia</h4>
+      <span id="connPill2" class="conn-pill"><span id="connDot2" class="dot"></span><span id="connText2">Tryb lokalny</span></span>
+    </div>
+
+    <details style="margin-bottom:16px">
+      <summary style="cursor:pointer;font-weight:700;font-size:13px;margin-bottom:8px">📋 Jak uruchomić chmurę (jednorazowo, ~5 min)</summary>
+      <ol class="steps">
+        <li>Wejdź na <a href="https://supabase.com" target="_blank">supabase.com</a> → załóż darmowe konto → <b>New project</b> (zapamiętaj hasło do bazy).</li>
+        <li>W projekcie otwórz <b>SQL Editor</b> → wklej poniższy kod → <b>Run</b>.</li>
+        <li>Wejdź w <b>Project Settings → API</b>. Skopiuj <b>Project URL</b> oraz klucz <b>anon public</b>.</li>
+        <li>Wklej oba poniżej i kliknij <b>Połącz</b>. Gotowe — wpisz ten sam URL i klucz na komputerze żony.</li>
+      </ol>
+      <div class="code" id="sqlBox"></div>
+      <button class="btn btn-sm" id="copySqlBtn" style="margin-top:8px">Kopiuj SQL</button>
+    </details>
+
+    <div class="form-grid">
+      <div class="field full"><label>Project URL</label><input id="sbUrl" placeholder="https://xxxx.supabase.co"></div>
+      <div class="field full"><label>Klucz anon public</label><input id="sbKey" placeholder="eyJhbGciOi..."></div>
+    </div>
+    <div class="note" style="margin-top:12px">To narzędzie wewnętrzne — nie publikuj tego pliku w internecie z wpisanym kluczem. Trzymaj go u siebie / na prywatnym dysku. Gdy będziecie chcieli, dorobimy logowanie hasłem.</div>
+
+    <div class="sec" style="margin-top:18px">
+      <h4>Kopia zapasowa</h4>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-sm" id="exportBtn">⬇ Eksportuj dane (JSON)</button>
+        <button class="btn btn-sm" id="importBtn">⬆ Importuj z pliku</button>
+        <input type="file" id="importFile" accept="application/json" style="display:none">
+        <input type="file" id="attachInput" multiple style="display:none">
+        <input type="file" id="csvInput" accept=".csv,text/csv" style="display:none">
+      </div>
+    </div>
+
+    <div class="modal-foot">
+      <button type="button" class="btn btn-danger" id="disconnectBtn">Rozłącz chmurę</button>
+      <span style="flex:1"></span>
+      <button type="button" class="btn" id="settingsClose">Zamknij</button>
+      <button type="button" class="btn btn-primary" id="connectBtn">Połącz</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   FitbyMed — CRM Influencerów (single-file)
+   Dane: wspólna chmura (Supabase) lub lokalnie (localStorage).
+   ============================================================ */
+
+const LS_DATA = 'fbm_crm_influencers';
+const LS_CFG  = 'fbm_crm_config';
+
+const STATUSES = [
+  {key:'weryfikacja', label:'Po weryfikacji',        color:'#64748B'},
+  {key:'odrzucony',   label:'Odrzuceni',             color:'#EF4444'},
+  {key:'negocjacje',  label:'W trakcie negocjacji',  color:'#F59E0B'},
+  {key:'wspolpraca',  label:'Aktywna współpraca',    color:'#16A34A'},
+  {key:'zakonczona',  label:'Zakończona współpraca', color:'#0EA5E9'},
+];
+
+/* migracja starych kluczy statusów (poprzednia wersja) */
+const STATUS_MIGRATE = { nowy:'weryfikacja', odezwany:'weryfikacja', rozmowy:'negocjacje', zakonczony:'zakonczona' };
+const PLATFORMS = [
+  {key:'instagram', label:'Instagram', short:'IG',  color:'#E1306C'},
+  {key:'tiktok',    label:'TikTok',    short:'TT',  color:'#111827'},
+  {key:'youtube',   label:'YouTube',   short:'YT',  color:'#FF0000'},
+  {key:'facebook',  label:'Facebook',  short:'FB',  color:'#1877F2'},
+  {key:'website',   label:'WWW',       short:'WWW', color:'#0EA5E9'},
+];
+const DIRS = {
+  out:  {label:'Wysłany',   bg:'#E0F2FE', fg:'#0369A1'},
+  in:   {label:'Otrzymany', bg:'#DCFCE7', fg:'#166534'},
+  call: {label:'Rozmowa',   bg:'#FEF3C7', fg:'#92400E'},
+  note: {label:'Notatka',   bg:'#F1F2F4', fg:'#4B5563'},
+};
+
+const SETUP_SQL =
+`-- FitbyMed CRM — tabela danych
+create table if not exists influencers (
+  id uuid primary key default gen_random_uuid(),
+  data jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
+-- Zmiany na żywo u obojga (realtime)
+alter publication supabase_realtime add table influencers;
+
+-- Dostęp dla aplikacji (narzędzie wewnętrzne)
+alter table influencers enable row level security;
+create policy "crm_all" on influencers
+  for all using (true) with check (true);`;
+
+/* ---------- Stan ---------- */
+let state = { influencers: [], filterStatus:'', openId:null, openThread:null };
+let config = { url:'', key:'' };
+let sb = null, channel = null, uiBusy = false, pendingReload = false;
+let pendingAttach = [];
+const ATT_MAX = 1024*1024; // do 1 MB plik osadzamy lokalnie; większe = tylko nazwa (realny transfer przy podłączeniu maila)
+
+/* ---------- Helpers ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => (s==null?'':String(s)).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : 'id'+Date.now()+Math.round(Math.random()*1e6));
+const statusOf = k => STATUSES.find(s=>s.key===k) || STATUSES[0];
+const todayISO = () => new Date().toISOString().slice(0,10);
+function fmtDate(iso){ if(!iso) return ''; try{ return new Date(iso).toLocaleDateString('pl-PL',{day:'numeric',month:'short',year:'numeric'});}catch(e){return iso;} }
+function fmtNum(n){ n=Number(n)||0; return n.toLocaleString('pl-PL'); }
+function fmtCompact(n){ n=Number(n)||0; if(n<1000) return String(n); const v=n/1000; return (v>=100?Math.round(v):Math.round(v*10)/10).toString().replace('.',',')+'k'; }
+function totalReach(inf){ const r=inf.reach||{}; return Object.values(r).reduce((a,b)=>a+(Number(b)||0),0); }
+/* ---------- Sprzedaż (afiliacja / GoAffPro) ---------- */
+function ordList(i){ return i.orders||[]; }
+function revenueOf(i){ return ordList(i).reduce((a,o)=>a+(Number(o.amount)||0),0); }
+function commissionOf(i){ return ordList(i).reduce((a,o)=>a+(Number(o.commission)||0),0); }
+function qtyOf(i){ const o=ordList(i); return o.length? o.reduce((a,x)=>a+(Number(x.qty)||0),0) : (Number(i.sales)||0); }
+function hasSold(i){ return revenueOf(i)>0 || qtyOf(i)>0; }
+function fmtPLN(n){ n=Number(n)||0; return n.toLocaleString('pl-PL',{maximumFractionDigits:0})+' zł'; }
+function productsOf(i){ const m={}; ordList(i).forEach(o=>{ const k=o.product||'(bez nazwy)'; m[k]=m[k]||{qty:0,amount:0}; m[k].qty+=Number(o.qty)||0; m[k].amount+=Number(o.amount)||0; });
+  return Object.entries(m).map(([name,v])=>({name,qty:v.qty,amount:v.amount})).sort((a,b)=>b.amount-a.amount); }
+function dailyOf(i){ const m={}; ordList(i).forEach(o=>{ const d=(o.date||'').slice(0,10); if(!d) return; m[d]=(m[d]||0)+(Number(o.amount)||0); });
+  return Object.entries(m).map(([date,amount])=>({date,amount})).sort((a,b)=>a.date<b.date?-1:1); }
+function renderSalesChart(i){
+  const series=dailyOf(i); if(!series.length) return '';
+  const last=series.slice(-30); const max=Math.max.apply(null,last.map(d=>d.amount).concat([1]));
+  return `<div class="chart">${last.map(d=>{ const h=Math.max(2,Math.round((d.amount/max)*100));
+    return `<div class="bar-wrap" title="${esc(d.date)}: ${fmtPLN(d.amount)}"><div class="bar" style="height:${h}%"></div></div>`;
+  }).join('')}</div>
+  <div class="chart-x"><span>${esc(last[0].date)}</span><span>maks. ${fmtPLN(max)}/dzień</span><span>${esc(last[last.length-1].date)}</span></div>`;
+}
+function fmtSize(b){ b=Number(b)||0; if(b<1024) return b+' B'; if(b<1048576) return Math.round(b/1024)+' KB'; return (b/1048576).toFixed(1).replace('.',',')+' MB'; }
+function threadMsgs(t){ return (t.messages||[]).slice().sort((a,b)=>{
+  if((a.date||'')!==(b.date||'')) return (a.date||'')<(b.date||'')?-1:1;
+  const ca=a.created||'', cb=b.created||''; return ca<cb?-1:(ca>cb?1:0);
+}); }
+function threadDate(t){ const m=threadMsgs(t); return m.length? m[m.length-1].date : (t.created||'').slice(0,10); }
+function threadPreview(t){ const m=threadMsgs(t); const last=m[m.length-1]; if(!last) return 'Pusty wątek'; const txt=last.body||((last.attachments||[]).length?'📎 załącznik':'—'); return (last.direction==='out'?'Ja: ':'')+txt; }
+function initials(name){ const p=(name||'?').trim().split(/\s+/); return ((p[0]||'?')[0]+(p[1]?p[1][0]:'')).toUpperCase(); }
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),2600); }
+
+/* ============================================================
+   Trwałość: chmura (Supabase) lub localStorage
+   ============================================================ */
+function saveCache(){ localStorage.setItem(LS_DATA, JSON.stringify(state.influencers)); }
+
+function initSupabase(){
+  if(config.url && config.key && window.supabase){
+    try{ sb = window.supabase.createClient(config.url, config.key); subscribeRealtime(); return true; }
+    catch(e){ sb=null; return false; }
+  }
+  sb=null; return false;
+}
+
+function subscribeRealtime(){
+  if(!sb) return;
+  try{ if(channel) sb.removeChannel(channel); }catch(e){}
+  channel = sb.channel('influencers-rt')
+    .on('postgres_changes', {event:'*', schema:'public', table:'influencers'}, () => {
+      if(uiBusy){ pendingReload = true; } else { loadAll(); }
+    }).subscribe();
+}
+
+function normalize(arr){
+  (arr||[]).forEach(i=>{
+    if(STATUS_MIGRATE[i.status]) i.status = STATUS_MIGRATE[i.status];
+    if(!i.threads){
+      i.threads = [];
+      if(i.contacts && i.contacts.length){
+        i.threads.push({
+          id:uid(), subject:i.contacts[0].subject||'Wcześniejsza korespondencja',
+          created:i.contacts[0].created||new Date().toISOString(), updated:new Date().toISOString(),
+          messages:i.contacts.map(c=>({ id:c.id||uid(), direction:c.direction==='call'?'note':c.direction,
+            date:c.date, body:(c.subject?'['+c.subject+'] ':'')+(c.body||''), attachments:[], created:c.created }))
+        });
+      }
+      delete i.contacts;
+    }
+  });
+  return arr;
+}
+async function loadAll(){
+  const cached = localStorage.getItem(LS_DATA);
+  state.influencers = normalize(cached ? JSON.parse(cached) : []);
+  if(sb){
+    try{
+      const {data, error} = await sb.from('influencers').select('*');
+      if(error) throw error;
+      state.influencers = normalize((data||[]).map(r => Object.assign({}, r.data, {id:r.id})));
+      saveCache();
+    }catch(e){ toast('Nie udało się pobrać z chmury — pokazuję dane lokalne'); }
+  }
+  renderAll();
+}
+
+async function persistUpsert(inf){
+  inf.updated = new Date().toISOString();
+  saveCache();
+  if(sb){
+    try{ const {error}=await sb.from('influencers').upsert({id:inf.id, data:inf, updated_at:inf.updated}); if(error) throw error; }
+    catch(e){ toast('⚠ Błąd zapisu w chmurze'); }
+  }
+}
+async function persistDelete(id){
+  saveCache();
+  if(sb){ try{ await sb.from('influencers').delete().eq('id',id); }catch(e){ toast('⚠ Błąd usuwania w chmurze'); } }
+}
+
+/* ============================================================
+   Render
+   ============================================================ */
+function renderAll(){ updateConn(); renderMetrics(); renderPipeline(); renderAttention(); renderList(); if(state.openId) renderProfile(state.openId); }
+
+function renderMetrics(){
+  const arr = state.influencers, today = todayISO();
+  const reach   = arr.reduce((a,i)=>a+totalReach(i),0);
+  const revenue = arr.reduce((a,i)=>a+revenueOf(i),0);
+  const units   = arr.reduce((a,i)=>a+qtyOf(i),0);
+  const sold    = arr.filter(hasSold).length;
+  const cards = [
+    {ic:'💰', bg:'#DCFCE7', v:fmtPLN(revenue), l:'Obrót z afiliacji'},
+    {ic:'🎟️', bg:'var(--orange-lt)', v:fmtNum(units), l:'Sprzedanych szt.'},
+    {ic:'✅', bg:'#EEF2FF', v:`${sold} / ${arr.length}`, l:'Influencerów ze sprzedażą'},
+    {ic:'👥', bg:'#F1F2F4', v:fmtNum(reach), l:'Łączny zasięg'},
+  ];
+  $('#metrics').innerHTML = cards.map(m=>`<div class="metric">
+    <div class="mtop"><div class="mv">${m.v}</div><div class="badge-ic" style="background:${m.bg}">${m.ic}</div></div>
+    <div class="ml">${m.l}</div></div>`).join('');
+}
+
+function renderPipeline(){
+  const total = state.influencers.length;
+  let html = `<div class="stat ${state.filterStatus===''?'active':''}" data-action="filter-status" data-status="">
+      <div class="num">${total}</div><div class="lbl">Wszyscy</div></div>`;
+  STATUSES.forEach(s=>{
+    const n = state.influencers.filter(i=>i.status===s.key).length;
+    html += `<div class="stat ${state.filterStatus===s.key?'active':''}" data-action="filter-status" data-status="${s.key}">
+      <span class="bar" style="background:${s.color}"></span>
+      <div class="num">${n}</div><div class="lbl">${s.label}</div></div>`;
+  });
+  $('#pipeline').innerHTML = html;
+}
+
+function renderAttention(){
+  const today = todayISO();
+  const due = state.influencers
+    .filter(i => i.nextStepDate && i.nextStepDate <= today && i.status!=='zakonczona' && i.status!=='odrzucony')
+    .sort((a,b)=> a.nextStepDate < b.nextStepDate ? -1 : 1);
+  const box = $('#attention');
+  if(!due.length){ box.innerHTML=''; return; }
+  box.innerHTML = `<div class="attention">
+    <h3>🔔 Wymaga uwagi (${due.length})</h3>
+    <div class="att-grid">${due.map(i=>{
+      const overdue = i.nextStepDate < today;
+      return `<div class="att-card" data-action="open" data-id="${i.id}">
+        <div class="nm">${esc(i.name)}</div>
+        <div class="ns">${esc(i.nextStepText||'Następny krok')}</div>
+        <div class="att-date ${overdue?'att-overdue':'att-today'}">${overdue?'⏰ zaległe — ':'📅 '}${fmtDate(i.nextStepDate)}</div>
+      </div>`;
+    }).join('')}</div></div>`;
+}
+
+function filteredList(){
+  const q = $('#search').value.trim().toLowerCase();
+  const fp = $('#fPlatform').value;
+  const sort = $('#sortBy').value;
+  const fsold = $('#fSold') ? $('#fSold').value : '';
+  let arr = state.influencers.slice();
+  if(state.filterStatus) arr = arr.filter(i=>i.status===state.filterStatus);
+  if(fp) arr = arr.filter(i=> (i.socials||{})[fp]);
+  if(fsold==='yes') arr = arr.filter(hasSold);
+  else if(fsold==='no') arr = arr.filter(i=>!hasSold(i));
+  if(q){
+    arr = arr.filter(i=>{
+      const hay = [i.name,i.realName,i.niche,i.phone,i.email,i.discountCode,(i.tags||[]).join(' '),i.brief,i.notes,Object.values(i.socials||{}).join(' ')].join(' ').toLowerCase();
+      return hay.includes(q);
+    });
+  }
+  if(sort==='name') arr.sort((a,b)=>(a.name||'').localeCompare(b.name||'','pl'));
+  else if(sort==='revenue') arr.sort((a,b)=>revenueOf(b)-revenueOf(a));
+  else if(sort==='reach') arr.sort((a,b)=>totalReach(b)-totalReach(a));
+  else if(sort==='next') arr.sort((a,b)=>(a.nextStepDate||'9999')< (b.nextStepDate||'9999')?-1:1);
+  else arr.sort((a,b)=>(b.updated||'')<(a.updated||'')?-1:1);
+  return arr;
+}
+
+function renderList(){
+  const arr = filteredList();
+  $('#count').textContent = `${arr.length} z ${state.influencers.length}`;
+  const list = $('#list');
+  if(!state.influencers.length){
+    list.innerHTML = `<div class="empty"><div class="big">📇</div><h2>Brak influencerów</h2>
+      <p>Dodaj pierwszego albo wczytaj przykładowe dane, żeby zobaczyć jak to działa.</p>
+      <div style="display:flex;gap:8px;justify-content:center;margin-top:14px">
+        <button class="btn btn-primary" data-action="add">+ Dodaj influencera</button>
+        <button class="btn" data-action="demo">Wczytaj przykład</button>
+      </div></div>`;
+    return;
+  }
+  if(!arr.length){ list.innerHTML = `<div class="empty"><div class="big">🔍</div><h2>Brak wyników</h2><p>Zmień filtry albo wyszukiwanie.</p></div>`; return; }
+  const splitDefs = [{k:'instagram',s:'IG'},{k:'tiktok',s:'TT'},{k:'facebook',s:'FB'}];
+  list.innerHTML = arr.map(i=>{
+    const st = statusOf(i.status);
+    const tr = totalReach(i);
+    const r = i.reach||{};
+    const split = splitDefs.filter(p=>r[p.k]).map(p=>`<div class="rs"><b>${fmtCompact(r[p.k])}</b><span>${p.s}</span></div>`).join('');
+    const meta = [
+      i.phone?`<span class="mi">📞 ${esc(i.phone)}</span>`:'',
+      i.email?`<span class="mi">✉️ ${esc(i.email)}</span>`:'',
+      i.discountCode?`<span class="kod">🎟️ ${esc(i.discountCode)}</span>`:'',
+    ].filter(Boolean).join('');
+    return `<div class="row" data-action="open" data-id="${i.id}">
+      <div class="avatar" style="background:${st.color}">${esc(initials(i.name))}</div>
+      <div class="row-main">
+        <div class="row-name">${esc(i.name)} <span class="badge" style="background:${st.color}22;color:${st.color}">${st.label}</span></div>
+        <div class="row-sub">
+          ${i.realName?`<span>${esc(i.realName)}</span>`:''}
+          ${i.niche?`<span>🎯 ${esc(i.niche)}</span>`:''}
+          <span class="tags">${(i.tags||[]).slice(0,3).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</span>
+        </div>
+        ${meta?`<div class="row-meta">${meta}</div>`:''}
+      </div>
+      <div class="row-right">
+        ${split?`<div class="reach-split">${split}</div>`:''}
+        ${tr?`<div class="reach" style="margin-top:6px">Σ&nbsp;<b>${fmtNum(tr)}</b></div>`:''}
+        ${hasSold(i)
+          ? `<div class="sales-pill" style="margin-top:6px">💰 ${fmtPLN(revenueOf(i))} · ${fmtNum(qtyOf(i))} szt.</div>`
+          : `<div class="no-sale" style="margin-top:6px">— brak sprzedaży</div>`}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderProfile(id){
+  const i = state.influencers.find(x=>x.id===id);
+  if(!i){ backToDashboard(); return; }
+  const st = statusOf(i.status);
+  const socials = PLATFORMS.filter(p=>(i.socials||{})[p.key]);
+  const tr = totalReach(i);
+
+  $('#profile').innerHTML = `
+    <div class="back-bar">
+      <button class="btn" data-action="back">← Wróć do dashboardu</button>
+      <span style="flex:1"></span>
+      <button class="btn btn-sm" data-action="edit" data-id="${i.id}">Edytuj</button>
+      <button class="btn btn-sm btn-danger" data-action="delete" data-id="${i.id}">Usuń</button>
+    </div>
+
+    <div class="profile-hero">
+      <div class="avatar" style="background:${st.color};width:60px;height:60px;font-size:21px">${esc(initials(i.name))}</div>
+      <div style="flex:1;min-width:0">
+        <h1 style="font-size:24px;margin:0;line-height:1.2">${esc(i.name)}</h1>
+        <div class="handle" style="color:var(--muted);font-size:13.5px;margin-top:3px">${esc(i.realName||'')} ${i.niche?'· '+esc(i.niche):''}</div>
+        <div style="margin-top:11px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <select id="d_status" style="padding:6px 9px;border:1px solid var(--line-dk);border-radius:8px;font-weight:700;color:${st.color}">
+            ${STATUSES.map(s=>`<option value="${s.key}" ${s.key===i.status?'selected':''}>${s.label}</option>`).join('')}
+          </select>
+          ${i.email?`<button class="btn btn-sm" data-action="mailto" data-id="${i.id}">✉️ Napisz mail</button>`:''}
+          ${(i.tags||[]).length?`<span class="tags">${i.tags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</span>`:''}
+        </div>
+      </div>
+      ${tr?`<div style="text-align:right;flex-shrink:0">
+        <div style="font-size:22px;font-weight:800">👥 ${fmtNum(tr)}</div>
+        <div style="font-size:12px;color:var(--muted)">łączny zasięg</div></div>`:''}
+    </div>
+
+    <div class="profile-grid">
+      <div>
+        <div class="panel">
+          <div class="panel-title" style="justify-content:space-between">
+            <span>📈 Sprzedaż (afiliacja / GoAffPro)</span>
+            ${i.discountCode?`<span class="kod">🎟️ ${esc(i.discountCode)}</span>`:''}
+          </div>
+          ${hasSold(i) ? `
+            <div class="kpis3">
+              <div class="kpi"><div class="kv-num">${fmtPLN(revenueOf(i))}</div><div class="kv-lbl">Obrót</div></div>
+              <div class="kpi"><div class="kv-num">${fmtNum(qtyOf(i))}</div><div class="kv-lbl">Sztuk</div></div>
+              <div class="kpi"><div class="kv-num">${fmtPLN(commissionOf(i))}</div><div class="kv-lbl">Prowizja</div></div>
+            </div>
+            ${renderSalesChart(i) ? `<div class="chart-title">Sprzedaż dziennie (PLN)</div>${renderSalesChart(i)}` : ''}
+            ${productsOf(i).length ? `<div class="chart-title" style="margin-top:14px">Co sprzedał</div>
+              <div class="prodtable">${productsOf(i).map(p=>`<div class="prow">
+                <div class="pname">${esc(p.name)}</div><div class="pqty">${fmtNum(p.qty)} szt.</div><div class="pamt">${fmtPLN(p.amount)}</div>
+              </div>`).join('')}</div>` : ''}
+            ${i.salesUpdated?`<div class="muted-mini" style="margin-top:10px">Dane z importu: ${fmtDate(i.salesUpdated.slice(0,10))}</div>`:''}
+          ` : `<div class="muted-mini" style="padding:6px 0 2px">Brak sprzedaży${i.salesUpdated?' w ostatnim imporcie':''}. Wgraj CSV z GoAffPro (przycisk „Sprzedaż z GoAffPro" na dashboardzie), żeby zobaczyć obrót, sztuki i wykres dzienny.</div>`}
+        </div>
+
+        <div class="panel">
+          <h4 class="panel-title">🔗 Social media i zasięgi</h4>
+          ${socials.length?`<div class="socials" style="margin-bottom:${tr?'14px':'0'}">
+            ${socials.map(p=>`<a class="social-btn" href="${esc(i.socials[p.key])}" target="_blank" rel="noopener">
+              <span class="ic" style="background:${p.color}">${p.short}</span>${p.label} ↗</a>`).join('')}
+          </div>`:'<div style="color:var(--muted);font-size:13px;margin-bottom:'+(tr?'14px':'0')+'">Brak linków social.</div>'}
+          ${tr?`<div class="kv">
+            ${PLATFORMS.filter(p=>(i.reach||{})[p.key]).map(p=>`<div class="k">${p.label}</div><div><b>${fmtNum(i.reach[p.key])}</b> obserwujących</div>`).join('')}
+          </div>`:''}
+        </div>
+
+        <div class="panel">
+          <h4 class="panel-title">🎯 Brief — czym się zajmuje</h4>
+          <div class="prose">${i.brief?esc(i.brief):'<span style="color:var(--muted)">— brak —</span>'}</div>
+        </div>
+
+        <div class="panel">
+          <h4 class="panel-title">📋 Szczegóły</h4>
+          <div class="kv">
+            ${i.email?`<div class="k">Email</div><div><a href="mailto:${esc(i.email)}">${esc(i.email)}</a></div>`:''}
+            ${i.phone?`<div class="k">Telefon</div><div><a href="tel:${esc(i.phone)}">${esc(i.phone)}</a></div>`:''}
+            ${i.discountCode?`<div class="k">Kod rabatowy</div><div><span class="kod">🎟️ ${esc(i.discountCode)}</span></div>`:''}
+            ${i.sales?`<div class="k">Sprzedaż z kodu</div><div><b>${fmtNum(i.sales)}</b> szt.</div>`:''}
+            ${i.rates?`<div class="k">Stawki</div><div>${esc(i.rates)}</div>`:''}
+            <div class="k">Następny krok</div><div>${i.nextStepText?esc(i.nextStepText):'<span style="color:var(--muted)">—</span>'} ${i.nextStepDate?`<b>(${fmtDate(i.nextStepDate)})</b>`:''}</div>
+            ${(i.tags||[]).length?`<div class="k">Tagi</div><div class="tags">${i.tags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>`:''}
+          </div>
+        </div>
+
+        ${i.notes?`<div class="panel"><h4 class="panel-title">📝 Notatki</h4><div class="prose">${esc(i.notes)}</div></div>`:''}
+      </div>
+
+      <div>
+        ${renderChatPanel(i)}
+      </div>
+    </div>`;
+
+  // status zmiana z profilu
+  const sel = $('#d_status');
+  if(sel) sel.onchange = async ()=>{ i.status = sel.value; await persistUpsert(i); renderMetrics(); renderPipeline(); renderList(); renderProfile(id); toast('Status zmieniony'); };
+
+  // czat: przewiń na dół + wyślij Enterem
+  const cs = $('#chatScroll'); if(cs) cs.scrollTop = cs.scrollHeight;
+  const body = $('#c_body');
+  if(body) body.onkeydown = e=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); const b=document.querySelector('#profile [data-action="add-message"]'); if(b) b.click(); } };
+}
+
+function renderChatPanel(i){
+  const threads = (i.threads||[]).slice().sort((a,b)=> (threadDate(a) < threadDate(b)?1:-1));
+  const open = state.openThread ? threads.find(t=>t.id===state.openThread) : null;
+
+  if(!open){
+    return `<div class="panel">
+      <div class="panel-title" style="justify-content:space-between">
+        <span>📨 Wątki e-mail (${threads.length})</span>
+        <button class="btn btn-primary btn-sm" data-action="new-thread" data-id="${i.id}">+ Nowy wątek</button>
+      </div>
+      <div class="threads">
+        ${threads.length? threads.map(t=>{
+          const cnt=(t.messages||[]).length;
+          return `<div class="thread-row" data-action="open-thread" data-id="${i.id}" data-tid="${t.id}">
+            <div class="th-ic">✉️</div>
+            <div style="flex:1;min-width:0">
+              <div class="th-subj">${esc(t.subject||'(bez tematu)')}</div>
+              <div class="th-prev">${esc(threadPreview(t))}</div>
+            </div>
+            <div class="th-meta"><div>${fmtDate(threadDate(t))}</div><div class="th-cnt">${cnt}</div></div>
+          </div>`;
+        }).join('') : '<div style="color:var(--muted);font-size:13px;text-align:center;padding:28px 8px">Brak wątków — załóż pierwszy mail przyciskiem „+ Nowy wątek".</div>'}
+      </div>
+    </div>`;
+  }
+
+  const msgs = threadMsgs(open);
+  return `<div class="panel">
+    <div class="panel-title" style="justify-content:space-between;align-items:center;gap:8px">
+      <div style="display:flex;gap:8px;align-items:center;min-width:0">
+        <button class="btn btn-sm" data-action="back-threads" data-id="${i.id}">← Wątki</button>
+        <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">✉️ ${esc(open.subject||'(bez tematu)')}</span>
+      </div>
+      <button class="btn btn-sm btn-danger" data-action="del-thread" data-id="${i.id}" data-tid="${open.id}">Usuń wątek</button>
+    </div>
+    <div class="chat" id="chatScroll">
+      ${msgs.length? msgs.map(c=>{
+        if(c.direction==='note'){
+          return `<div class="bub-sys">📌 Notatka${c.body?': '+esc(c.body):''} · ${fmtDate(c.date)}
+            <button class="del" data-action="del-message" data-id="${i.id}" data-tid="${open.id}" data-cid="${c.id}" title="Usuń">×</button></div>`;
+        }
+        const out=c.direction==='out';
+        const atts=(c.attachments||[]).map(a=> a.dataUrl
+          ? `<a class="att" href="${a.dataUrl}" download="${esc(a.name)}">📎 ${esc(a.name)} <span>${fmtSize(a.size)}</span></a>`
+          : `<span class="att att-meta" title="Plik podłączysz przy realnym wysyłaniu">📎 ${esc(a.name)} <span>${fmtSize(a.size)}</span></span>`).join('');
+        return `<div class="bub ${out?'out':'in'}">
+          <button class="del" data-action="del-message" data-id="${i.id}" data-tid="${open.id}" data-cid="${c.id}" title="Usuń">×</button>
+          ${c.body?`<div class="b">${esc(c.body)}</div>`:''}
+          ${atts?`<div class="atts">${atts}</div>`:''}
+          <div class="t">${out?'Ja':esc(i.name)} · ${fmtDate(c.date)}</div>
+        </div>`;
+      }).join('') : '<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px 8px">Pusty wątek — napisz pierwszą wiadomość.</div>'}
+    </div>
+    <div class="composer">
+      <div class="row1">
+        <input type="hidden" id="c_dir" value="out">
+        <div class="seg">
+          <button type="button" data-action="seg" data-dir="out" class="on">Ja</button>
+          <button type="button" data-action="seg" data-dir="in">Influencer</button>
+          <button type="button" data-action="seg" data-dir="note">Notatka</button>
+        </div>
+        <input id="c_date" type="date" value="${todayISO()}">
+      </div>
+      <textarea id="c_body" placeholder="Treść maila lub notatka…  (Enter wysyła, Shift+Enter = nowa linia)"></textarea>
+      ${pendingAttach.length?`<div class="pending">${pendingAttach.map((a,idx)=>`<span class="att">📎 ${esc(a.name)} <span>${fmtSize(a.size)}</span>
+        <button data-action="rm-attach" data-idx="${idx}" title="Usuń">×</button></span>`).join('')}</div>`:''}
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-sm" data-action="attach">📎 Załącz plik</button>
+        <div style="display:flex;gap:8px">
+          ${i.email?`<button class="btn btn-sm" data-action="mail-thread" data-id="${i.id}" data-tid="${open.id}">✉️ Otwórz w mailu</button>`:''}
+          <button class="btn btn-primary btn-sm" data-action="add-message" data-id="${i.id}" data-tid="${open.id}">Wyślij ▸</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ============================================================
+   Otwieranie / zamykanie paneli
+   ============================================================ */
+function openProfile(id){ state.openId=id; state.openThread=null; pendingAttach=[]; uiBusy=true; renderProfile(id); $('#dashboard').style.display='none'; $('#profile').classList.add('show'); window.scrollTo(0,0); }
+function backToDashboard(){ state.openId=null; state.openThread=null; pendingAttach=[]; uiBusy=false; $('#profile').classList.remove('show'); $('#dashboard').style.display=''; renderAll(); flushReload(); }
+function flushReload(){ if(pendingReload && !isBusyView()){ pendingReload=false; loadAll(); } }
+function isBusyView(){ return $('#modal').classList.contains('show') || $('#settingsModal').classList.contains('show') || $('#profile').classList.contains('show'); }
+
+function openModal(inf){
+  uiBusy=true;
+  $('#modalTitle').textContent = inf? 'Edytuj influencera' : 'Nowy influencer';
+  const s = inf || {};
+  $('#f_id').value = s.id||'';
+  $('#f_name').value = s.name||''; $('#f_realName').value=s.realName||''; $('#f_email').value=s.email||''; $('#f_phone').value=s.phone||'';
+  $('#f_status').value = s.status||'weryfikacja';
+  $('#f_niche').value=s.niche||''; $('#f_tags').value=(s.tags||[]).join(', ');
+  $('#f_discount').value=s.discountCode||''; $('#f_sales').value=s.sales||'';
+  const so=s.socials||{}; $('#f_ig').value=so.instagram||''; $('#f_tt').value=so.tiktok||''; $('#f_yt').value=so.youtube||''; $('#f_fb').value=so.facebook||''; $('#f_web').value=so.website||'';
+  const r=s.reach||{}; $('#f_rIg').value=r.instagram||''; $('#f_rTt').value=r.tiktok||''; $('#f_rFb').value=r.facebook||''; $('#f_rYt').value=r.youtube||'';
+  $('#f_brief').value=s.brief||''; $('#f_rates').value=s.rates||''; $('#f_notes').value=s.notes||'';
+  $('#f_nextText').value=s.nextStepText||''; $('#f_nextDate').value=s.nextStepDate||'';
+  $('#modal').classList.add('show');
+  setTimeout(()=>$('#f_name').focus(),50);
+}
+function closeModal(){ $('#modal').classList.remove('show'); uiBusy=$('#profile').classList.contains('show'); flushReload(); }
+
+/* ============================================================
+   Zapis formularza
+   ============================================================ */
+$('#form').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const id = $('#f_id').value;
+  const existing = id ? state.influencers.find(x=>x.id===id) : null;
+  const tags = $('#f_tags').value.split(',').map(t=>t.trim()).filter(Boolean);
+  const inf = Object.assign({}, existing, {
+    id: id || uid(),
+    name: $('#f_name').value.trim(),
+    realName: $('#f_realName').value.trim(),
+    email: $('#f_email').value.trim(),
+    phone: $('#f_phone').value.trim(),
+    status: $('#f_status').value,
+    niche: $('#f_niche').value.trim(),
+    tags,
+    discountCode: $('#f_discount').value.trim(),
+    sales: +$('#f_sales').value||0,
+    socials:{ instagram:$('#f_ig').value.trim(), tiktok:$('#f_tt').value.trim(), youtube:$('#f_yt').value.trim(), facebook:$('#f_fb').value.trim(), website:$('#f_web').value.trim() },
+    reach:{ instagram:+$('#f_rIg').value||0, tiktok:+$('#f_rTt').value||0, facebook:+$('#f_rFb').value||0, youtube:+$('#f_rYt').value||0 },
+    brief:$('#f_brief').value.trim(), rates:$('#f_rates').value.trim(), notes:$('#f_notes').value.trim(),
+    nextStepText:$('#f_nextText').value.trim(), nextStepDate:$('#f_nextDate').value,
+    threads: existing? existing.threads||[] : [],
+    created: existing? existing.created : new Date().toISOString(),
+  });
+  if(existing){ Object.assign(existing, inf); } else { state.influencers.push(inf); }
+  await persistUpsert(inf);
+  closeModal(); renderAll();
+  toast(existing?'Zapisano zmiany':'Dodano influencera');
+  if(!existing) openProfile(inf.id);
+});
+
+/* ============================================================
+   Delegacja kliknięć
+   ============================================================ */
+document.addEventListener('click', async e=>{
+  const el = e.target.closest('[data-action]'); if(!el) return;
+  const a = el.dataset.action, id = el.dataset.id;
+  if(a==='open'){ openProfile(id); }
+  else if(a==='add'){ openModal(null); }
+  else if(a==='demo'){ loadDemo(); }
+  else if(a==='back'){ backToDashboard(); }
+  else if(a==='seg'){ $('#c_dir').value = el.dataset.dir; el.parentElement.querySelectorAll('button').forEach(b=>b.classList.toggle('on', b===el)); }
+  else if(a==='edit'){ openModal(state.influencers.find(x=>x.id===id)); }
+  else if(a==='filter-status'){ state.filterStatus = el.dataset.status; renderPipeline(); renderList(); }
+  else if(a==='mailto'){ const i=state.influencers.find(x=>x.id===id); if(i&&i.email) location.href=`mailto:${i.email}?subject=${encodeURIComponent('FitbyMed — współpraca')}`; }
+  else if(a==='delete'){
+    const i=state.influencers.find(x=>x.id===id);
+    if(i && confirm(`Usunąć „${i.name}”? Tej operacji nie cofniesz.`)){
+      state.influencers = state.influencers.filter(x=>x.id!==id);
+      await persistDelete(id); backToDashboard(); toast('Usunięto');
+    }
+  }
+  else if(a==='new-thread'){
+    const i=state.influencers.find(x=>x.id===id); if(!i) return;
+    const subject=(prompt('Temat nowego wątku e-mail (np. „Współpraca — maska LED")')||'').trim();
+    if(!subject) return;
+    i.threads = i.threads||[];
+    const t={ id:uid(), subject, created:new Date().toISOString(), updated:new Date().toISOString(), messages:[] };
+    i.threads.push(t); state.openThread=t.id; pendingAttach=[];
+    await persistUpsert(i); renderProfile(id);
+  }
+  else if(a==='open-thread'){ state.openThread=el.dataset.tid; pendingAttach=[]; renderProfile(id); }
+  else if(a==='back-threads'){ state.openThread=null; pendingAttach=[]; renderProfile(id); }
+  else if(a==='attach'){ $('#attachInput').click(); }
+  else if(a==='rm-attach'){ pendingAttach.splice(+el.dataset.idx,1); if(state.openId) renderProfile(state.openId); }
+  else if(a==='add-message'){
+    const i=state.influencers.find(x=>x.id===id); if(!i) return;
+    const t=(i.threads||[]).find(x=>x.id===el.dataset.tid); if(!t) return;
+    const body=$('#c_body').value.trim();
+    if(!body && !pendingAttach.length){ toast('Wpisz treść lub dodaj załącznik'); return; }
+    t.messages = t.messages||[];
+    t.messages.push({ id:uid(), direction:$('#c_dir').value, date:$('#c_date').value||todayISO(),
+      body, attachments:pendingAttach.slice(), created:new Date().toISOString() });
+    t.updated = new Date().toISOString(); pendingAttach=[];
+    await persistUpsert(i); renderProfile(id);
+  }
+  else if(a==='del-message'){
+    const i=state.influencers.find(x=>x.id===id); if(!i) return;
+    const t=(i.threads||[]).find(x=>x.id===el.dataset.tid); if(!t) return;
+    t.messages = (t.messages||[]).filter(c=>c.id!==el.dataset.cid);
+    await persistUpsert(i); renderProfile(id);
+  }
+  else if(a==='del-thread'){
+    const i=state.influencers.find(x=>x.id===id); if(!i) return;
+    if(!confirm('Usunąć cały wątek z wiadomościami?')) return;
+    i.threads = (i.threads||[]).filter(t=>t.id!==el.dataset.tid);
+    state.openThread=null; await persistUpsert(i); renderProfile(id); toast('Wątek usunięty');
+  }
+  else if(a==='mail-thread'){
+    const i=state.influencers.find(x=>x.id===id); if(!i||!i.email) return;
+    const t=(i.threads||[]).find(x=>x.id===el.dataset.tid);
+    location.href=`mailto:${i.email}?subject=${encodeURIComponent(t?t.subject:'')}`;
+  }
+});
+
+/* Esc: zamyka modal / ustawienia, albo wraca z profilu na dashboard */
+document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ if($('#modal').classList.contains('show')) closeModal(); else if($('#settingsModal').classList.contains('show')) $('#settingsModal').classList.remove('show'); else if($('#profile').classList.contains('show')) backToDashboard(); } });
+
+/* Statyczne przyciski */
+$('#addBtn').onclick = ()=>openModal(null);
+$('#cancelBtn').onclick = closeModal;
+$('#search').oninput = renderList;
+$('#fPlatform').onchange = renderList;
+$('#fSold').onchange = renderList;
+$('#sortBy').onchange = renderList;
+$('#csvBtn').onclick = ()=>$('#csvInput').click();
+$('#fStatus').onchange = ()=>{ state.filterStatus=$('#fStatus').value; renderPipeline(); renderList(); };
+
+/* ============================================================
+   Ustawienia / chmura
+   ============================================================ */
+function updateConn(){
+  const on = !!sb;
+  const txt = on ? 'Chmura: połączono' : 'Tryb lokalny';
+  ['','2'].forEach(sfx=>{
+    const dot=$('#connDot'+sfx), t=$('#connText'+sfx);
+    if(dot) dot.className='dot'+(on?' on':''); if(t) t.textContent=txt;
+  });
+}
+function openSettings(){
+  $('#sbUrl').value=config.url||''; $('#sbKey').value=config.key||'';
+  $('#sqlBox').textContent=SETUP_SQL; updateConn();
+  $('#settingsModal').classList.add('show');
+}
+$('#settingsBtn').onclick = openSettings;
+$('#settingsClose').onclick = ()=>$('#settingsModal').classList.remove('show');
+$('#copySqlBtn').onclick = ()=>{ navigator.clipboard.writeText(SETUP_SQL).then(()=>toast('Skopiowano SQL')); };
+$('#connectBtn').onclick = ()=>{
+  config.url=$('#sbUrl').value.trim(); config.key=$('#sbKey').value.trim();
+  localStorage.setItem(LS_CFG, JSON.stringify(config));
+  if(!config.url||!config.key){ toast('Wpisz URL i klucz'); return; }
+  if(initSupabase()){ toast('Łączenie z chmurą...'); loadAll(); $('#settingsModal').classList.remove('show'); }
+  else { toast('Sprawdź URL i klucz'); }
+  updateConn();
+};
+$('#disconnectBtn').onclick = ()=>{
+  try{ if(channel&&sb) sb.removeChannel(channel); }catch(e){}
+  sb=null; channel=null; config={url:'',key:''}; localStorage.removeItem(LS_CFG);
+  $('#sbUrl').value=''; $('#sbKey').value=''; updateConn(); toast('Rozłączono — tryb lokalny');
+};
+
+/* Eksport / import */
+$('#exportBtn').onclick = ()=>{
+  const blob=new Blob([JSON.stringify(state.influencers,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='fitbymed-crm-influencerzy.json'; a.click();
+};
+$('#attachInput').onchange = async e=>{
+  const files=[...e.target.files]; let big=0;
+  for(const f of files){
+    if(f.size<=ATT_MAX){
+      const dataUrl=await new Promise(r=>{ const fr=new FileReader(); fr.onload=()=>r(fr.result); fr.readAsDataURL(f); });
+      pendingAttach.push({ name:f.name, size:f.size, dataUrl });
+    } else { pendingAttach.push({ name:f.name, size:f.size }); big++; }
+  }
+  e.target.value='';
+  if(big) toast(`${big} plik(i) > 1 MB — zapamiętuję samą nazwę (realny transfer przy podłączeniu maila)`);
+  if(state.openId) renderProfile(state.openId);
+};
+/* ---------- Import sprzedaży z GoAffPro (CSV) ---------- */
+function parseCSV(text){
+  text = text.replace(/^﻿/,'').replace(/\r\n?/g,'\n');
+  const rows=[]; let row=[], cur='', q=false;
+  for(let k=0;k<text.length;k++){ const c=text[k];
+    if(q){ if(c==='"'){ if(text[k+1]==='"'){ cur+='"'; k++; } else q=false; } else cur+=c; }
+    else if(c==='"') q=true;
+    else if(c===','){ row.push(cur); cur=''; }
+    else if(c==='\n'){ row.push(cur); rows.push(row); row=[]; cur=''; }
+    else cur+=c;
+  }
+  if(cur!==''||row.length){ row.push(cur); rows.push(row); }
+  const sep = (text.split('\n')[0]||'').includes(';') && !(text.split('\n')[0]||'').includes(',');
+  if(sep) return parseCSVsep(text); // fallback dla średnika
+  return rows.filter(r=>r.length && r.some(c=>c.trim()!==''));
+}
+function parseCSVsep(text){ return text.split('\n').filter(l=>l.trim()).map(l=>l.split(';').map(s=>s.replace(/^"|"$/g,''))); }
+function pickCol(headers, names){ const h=headers.map(x=>x.trim().toLowerCase());
+  for(const n of names){ const idx=h.findIndex(x=>x===n || x.includes(n)); if(idx>=0) return idx; } return -1; }
+function num(v){ if(v==null) return 0; return Number(String(v).replace(/[^\d.,-]/g,'').replace(/\s/g,'').replace(',', '.'))||0; }
+
+async function importSalesCSV(text){
+  const rows = parseCSV(text);
+  if(rows.length<2){ toast('Pusty lub nieczytelny CSV'); return; }
+  const headers = rows[0];
+  const c = {
+    code: pickCol(headers,['coupon','kupon','code','kod','discount']),
+    email:pickCol(headers,['email','e-mail','mail']),
+    name: pickCol(headers,['affiliate','influencer','nazwa','name']),
+    date: pickCol(headers,['date','data','created','order date']),
+    product:pickCol(headers,['product','produkt','item','title','sku']),
+    qty:  pickCol(headers,['qty','quantity','ilość','ilosc','units','szt']),
+    amount:pickCol(headers,['amount','obrót','obrot','revenue','total','sales','value','kwota','order total']),
+    commission:pickCol(headers,['commission','prowizja','payout']),
+  };
+  if(c.amount<0 || (c.code<0 && c.email<0 && c.name<0) || c.date<0){
+    toast('CSV bez wymaganych kolumn (data, kwota, kupon/email). Sprawdź eksport.'); return;
+  }
+  const byInf = new Map(); let matched=0, unmatched=0;
+  for(let r=1;r<rows.length;r++){
+    const row=rows[r]; if(!row.length) continue;
+    const codeV=(c.code>=0?row[c.code]:'').trim();
+    const emailV=(c.email>=0?row[c.email]:'').trim().toLowerCase();
+    const nameV=(c.name>=0?row[c.name]:'').trim().toLowerCase();
+    const inf = state.influencers.find(i=>
+      (codeV && (i.discountCode||'').toLowerCase()===codeV.toLowerCase()) ||
+      (emailV && (i.email||'').toLowerCase()===emailV) ||
+      (nameV && (i.name||'').toLowerCase()===nameV));
+    if(!inf){ unmatched++; continue; }
+    matched++;
+    const o={ id:uid(), date:(row[c.date]||'').trim().slice(0,10),
+      product:c.product>=0?(row[c.product]||'').trim():'',
+      qty:c.qty>=0?num(row[c.qty]):1, amount:num(row[c.amount]),
+      commission:c.commission>=0?num(row[c.commission]):0 };
+    if(!byInf.has(inf.id)) byInf.set(inf.id, []);
+    byInf.get(inf.id).push(o);
+  }
+  if(!matched){ toast('Żaden wiersz nie pasuje do influencerów (sprawdź kupony/maile)'); return; }
+  if(!confirm(`Znaleziono ${matched} zamówień dla ${byInf.size} influencerów (${unmatched} nierozpoznanych).\n\nTryb: PEŁNY EKSPORT — nadpisuję całą sprzedaż danymi z CSV. Kontynuować?`)) return;
+  const stamp=new Date().toISOString();
+  for(const i of state.influencers){
+    i.orders = byInf.get(i.id) || [];
+    i.salesUpdated = stamp;
+    await persistUpsert(i);
+  }
+  renderAll(); if(state.openId) renderProfile(state.openId);
+  toast(`Zaktualizowano sprzedaż: ${matched} zamówień, ${byInf.size} influencerów${unmatched?`, ${unmatched} pominięto`:''}`);
+}
+$('#csvInput').onchange = e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader(); r.onload=()=>importSalesCSV(String(r.result)); r.readAsText(f); e.target.value='';
+};
+
+$('#importBtn').onclick = ()=>$('#importFile').click();
+$('#importFile').onchange = e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload = async ()=>{
+    try{
+      const arr=JSON.parse(r.result); if(!Array.isArray(arr)) throw 0;
+      state.influencers=arr; saveCache();
+      if(sb){ for(const inf of arr){ await sb.from('influencers').upsert({id:inf.id, data:inf, updated_at:new Date().toISOString()}); } }
+      renderAll(); toast(`Zaimportowano ${arr.length} wpisów`);
+    }catch(err){ toast('Nieprawidłowy plik JSON'); }
+  };
+  r.readAsText(f); e.target.value='';
+};
+
+/* ============================================================
+   Dane przykładowe
+   ============================================================ */
+async function loadDemo(){
+  const now=new Date().toISOString();
+  const dz=o=>{ const d=new Date(); d.setDate(d.getDate()-o); return d.toISOString().slice(0,10); };
+  const demo=[
+    {id:uid(),name:'fit.kasia',realName:'Katarzyna Nowak',email:'kasia@example.com',phone:'+48 600 100 200',status:'wspolpraca',niche:'Fitness',
+     tags:['siłownia','dieta','mama'],discountCode:'KASIA10',sales:124,salesUpdated:now,
+     orders:[
+       {id:uid(),date:dz(9),product:'Depilator IPL T19B',qty:2,amount:1198,commission:120},
+       {id:uid(),date:dz(7),product:'Depilator IPL T19B',qty:1,amount:599,commission:60},
+       {id:uid(),date:dz(5),product:'Maska LED SKB-2318',qty:1,amount:399,commission:40},
+       {id:uid(),date:dz(3),product:'Depilator IPL T19B',qty:3,amount:1797,commission:180},
+       {id:uid(),date:dz(2),product:'Maska LED SKB-2318',qty:2,amount:798,commission:80},
+       {id:uid(),date:dz(0),product:'Depilator IPL T19B',qty:1,amount:599,commission:60}],
+     socials:{instagram:'https://instagram.com/fit.kasia',tiktok:'https://tiktok.com/@fit.kasia',facebook:'https://facebook.com/fit.kasia'},
+     reach:{instagram:48200,tiktok:91000,facebook:14000},brief:'Trening w domu i odchudzanie po ciąży. Odbiorcy: kobiety 25-40. Świetne dopasowanie pod bieżnię i IPL.',
+     rates:'900 zł / rolka + barter',nextStepText:'Rozliczyć sprzedaż z kodu za czerwiec',nextStepDate:todayISO(),
+     notes:'Bardzo profesjonalna, szybko odpisuje.',created:now,updated:now,
+     threads:[
+       {id:uid(),subject:'Propozycja współpracy FitbyMed',created:now,updated:now,messages:[
+         {id:uid(),direction:'out',date:todayISO(),body:'Cześć Kasiu, piszemy z FitbyMed — chcielibyśmy zaproponować współpracę przy depilatorze IPL.',attachments:[{name:'oferta_fitbymed.pdf',size:284000}],created:now},
+         {id:uid(),direction:'in',date:todayISO(),body:'Hej! Chętnie, poproszę o szczegóły i przykładowy produkt.',attachments:[],created:now}]},
+       {id:uid(),subject:'Rozliczenie kodu KASIA10',created:now,updated:now,messages:[
+         {id:uid(),direction:'out',date:todayISO(),body:'Podsyłam zestawienie sprzedaży z Twojego kodu za czerwiec.',attachments:[],created:now}]}]},
+    {id:uid(),name:'beauty.ania',realName:'Anna Lis',email:'ania@example.com',phone:'+48 511 222 333',status:'negocjacje',niche:'Beauty',
+     tags:['skincare','makijaż'],discountCode:'ANIA15',sales:42,salesUpdated:now,
+     orders:[
+       {id:uid(),date:dz(6),product:'Maska LED SKB-2318',qty:1,amount:399,commission:40},
+       {id:uid(),date:dz(2),product:'Maska LED SKB-2318',qty:1,amount:399,commission:40}],
+     socials:{instagram:'https://instagram.com/beauty.ania',youtube:'https://youtube.com/@beautyania',facebook:'https://facebook.com/beauty.ania'},
+     reach:{instagram:120000,youtube:35000,facebook:28000},brief:'Pielęgnacja skóry i urządzenia beauty-tech. Idealna pod maskę LED.',
+     rates:'do ustalenia',nextStepText:'Ustalić warunki i wysłać umowę',nextStepDate:'',notes:'',created:now,updated:now,
+     threads:[{id:uid(),subject:'Współpraca — maska LED',created:now,updated:now,messages:[
+        {id:uid(),direction:'out',date:todayISO(),body:'Dzień dobry, chcielibyśmy zaproponować współpracę przy masce LED.',attachments:[],created:now}]}]},
+    {id:uid(),name:'marek.trenuje',realName:'Marek Wójcik',email:'',phone:'',status:'weryfikacja',niche:'Sport / siła',
+     tags:['trening','suplementacja'],discountCode:'',sales:0,
+     socials:{instagram:'https://instagram.com/marek.trenuje',tiktok:'https://tiktok.com/@marek.trenuje'},
+     reach:{instagram:22000,tiktok:60000},brief:'Trening siłowy, męska grupa odbiorców. Potencjał pod bieżnię.',
+     rates:'',nextStepText:'Znaleźć kontakt mailowy',nextStepDate:todayISO(),notes:'Znaleziony przez hashtag #treningwdomu',created:now,updated:now,threads:[]},
+  ];
+  state.influencers = demo.concat(state.influencers);
+  saveCache();
+  if(sb){ for(const inf of demo){ await persistUpsert(inf); } }
+  renderAll(); toast('Wczytano przykładowe dane');
+}
+
+/* ============================================================
+   Start
+   ============================================================ */
+function boot(){
+  STATUSES.forEach(s=>{
+    $('#f_status').insertAdjacentHTML('beforeend',`<option value="${s.key}">${s.label}</option>`);
+    $('#fStatus').insertAdjacentHTML('beforeend',`<option value="${s.key}">${s.label}</option>`);
+  });
+  try{ const c=localStorage.getItem(LS_CFG); if(c) config=JSON.parse(c); }catch(e){}
+  initSupabase();
+  loadAll();
+}
+boot();
+</script>
+</body>
+</html>
