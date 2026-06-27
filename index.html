@@ -505,15 +505,17 @@ const LS_DATA = 'fbm_crm_influencers';
 const LS_CFG  = 'fbm_crm_config';
 
 const STATUSES = [
-  {key:'weryfikacja', label:'Po weryfikacji',        color:'#64748B'},
-  {key:'odrzucony',   label:'Odrzuceni',             color:'#EF4444'},
-  {key:'negocjacje',  label:'W trakcie negocjacji',  color:'#F59E0B'},
-  {key:'wspolpraca',  label:'Aktywna współpraca',    color:'#16A34A'},
-  {key:'zakonczona',  label:'Zakończona współpraca', color:'#0EA5E9'},
+  {key:'nowy',        label:'Nowy',         color:'#8B5CF6'},
+  {key:'weryfikacja', label:'Weryfikacja',  color:'#64748B'},
+  {key:'odrzucony',   label:'Odrzuceni',    color:'#EF4444'},
+  {key:'negocjacje',  label:'Negocjacje',   color:'#F59E0B'},
+  {key:'wspolpraca',  label:'Aktywni',      color:'#16A34A'},
+  {key:'zakonczona',  label:'Zakończone',   color:'#0EA5E9'},
 ];
+const DEFAULT_STATUS = 'nowy';
 
 /* migracja starych kluczy statusów (poprzednia wersja) */
-const STATUS_MIGRATE = { nowy:'weryfikacja', odezwany:'weryfikacja', rozmowy:'negocjacje', zakonczony:'zakonczona' };
+const STATUS_MIGRATE = { odezwany:'weryfikacja', rozmowy:'negocjacje', zakonczony:'zakonczona' };
 const PLATFORMS = [
   {key:'instagram', label:'Instagram', short:'IG',  color:'#E1306C'},
   {key:'tiktok',    label:'TikTok',    short:'TT',  color:'#111827'},
@@ -684,7 +686,7 @@ function renderMetrics(){
   const cards = [
     {ic:'💰', bg:'#DCFCE7', v:fmtPLN(revenue), l:'Obrót z afiliacji'},
     {ic:'🎟️', bg:'var(--orange-lt)', v:fmtNum(units), l:'Sprzedanych szt.'},
-    {ic:'✅', bg:'#EEF2FF', v:`${sold} / ${arr.length}`, l:'Influencerów ze sprzedażą'},
+    {ic:'✅', bg:'#EEF2FF', v:`${sold} / ${arr.length}${arr.length?` (${Math.round(sold/arr.length*100)}%)`:''}`, l:'Influencerów ze sprzedażą'},
     {ic:'👥', bg:'#F1F2F4', v:fmtNum(reach), l:'Zasięg aktywnych współprac'},
   ];
   $('#metrics').innerHTML = cards.map(m=>`<div class="metric">
@@ -705,9 +707,9 @@ function renderPipeline(){
   const S = Object.fromEntries(STATUSES.map(s=>[s.key,s]));
   const arrow = `<div class="pipe-arrow">→</div>`;
 
-  // Lejek (lewa strona) ze strzałkami
+  // Lejek (lewa strona) ze strzałkami: Nowy → Weryfikacja → Negocjacje → Aktywni
   const funnel = [
-    statTile('', 'Wszyscy', null),
+    statTile('nowy',        S.nowy.label,        S.nowy.color),
     statTile('weryfikacja', S.weryfikacja.label, S.weryfikacja.color),
     statTile('negocjacje',  S.negocjacje.label,  S.negocjacje.color),
     statTile('wspolpraca',  S.wspolpraca.label,  S.wspolpraca.color),
@@ -1054,7 +1056,7 @@ function openModal(inf){
   const s = inf || {};
   $('#f_id').value = s.id||'';
   $('#f_realName').value = s.realName||s.name||''; $('#f_email').value=s.email||''; $('#f_phone').value=s.phone||'';
-  $('#f_status').value = s.status||'weryfikacja';
+  $('#f_status').value = s.status||DEFAULT_STATUS;
   $('#f_niche').value=s.niche||''; $('#f_tags').value=(s.tags||[]).join(', ');
   $('#f_discount').value=s.discountCode||''; $('#f_sales').value=s.sales||'';
   const so=s.socials||{}; $('#f_ig').value=so.instagram||''; $('#f_tt').value=so.tiktok||''; $('#f_yt').value=so.youtube||''; $('#f_fb').value=so.facebook||''; $('#f_web').value=so.website||'';
@@ -1110,7 +1112,7 @@ document.addEventListener('click', async e=>{
   else if(a==='back'){ backToDashboard(); }
   else if(a==='seg'){ $('#c_dir').value = el.dataset.dir; el.parentElement.querySelectorAll('button').forEach(b=>b.classList.toggle('on', b===el)); }
   else if(a==='edit'){ openModal(state.influencers.find(x=>x.id===id)); }
-  else if(a==='filter-status'){ state.filterStatus = el.dataset.status; renderPipeline(); renderList(); }
+  else if(a==='filter-status'){ const ns=el.dataset.status; state.filterStatus = (state.filterStatus===ns? '' : ns); if($('#fStatus')) $('#fStatus').value=state.filterStatus; renderPipeline(); renderList(); }
   else if(a==='mailto'){ const i=state.influencers.find(x=>x.id===id); if(i&&i.email) location.href=`mailto:${i.email}?subject=${encodeURIComponent('FitbyMed — współpraca')}`; }
   else if(a==='delete'){
     const i=state.influencers.find(x=>x.id===id);
