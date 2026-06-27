@@ -110,6 +110,14 @@
   .soc-ico{width:26px;height:26px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;
            text-decoration:none;color:#fff;font-size:13px;transition:.12s;opacity:.92}
   .soc-ico:hover{opacity:1;transform:translateY(-1px)}
+  .soc-list{display:flex;flex-direction:column;gap:8px}
+  .soc-line{display:flex;align-items:center;gap:10px;padding:7px 9px;border:1px solid var(--line);border-radius:9px;background:#fff}
+  .soc-line .soc-ico{width:30px;height:30px;font-size:14px;flex-shrink:0}
+  .soc-handle{flex:1;min-width:0;font-weight:600;font-size:13.5px;color:var(--ink);text-decoration:none;
+              white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .soc-handle:hover{color:var(--orange-dk);text-decoration:underline}
+  .soc-reach{flex-shrink:0;font-size:13px;color:var(--muted);text-align:right;min-width:90px}
+  .soc-reach b{color:var(--ink);font-size:14px}
   .reach-split{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
   .rs{display:flex;flex-direction:column;align-items:flex-end;line-height:1.15}
   .rs b{font-size:13.5px;color:var(--ink)}
@@ -552,6 +560,9 @@ const ATT_MAX = 1024*1024; // do 1 MB plik osadzamy lokalnie; większe = tylko n
 const $ = s => document.querySelector(s);
 const esc = s => (s==null?'':String(s)).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : 'id'+Date.now()+Math.round(Math.random()*1e6));
+/* Sprawdza czy ID to poprawny UUID (baza wymaga typu uuid). Jeśli nie — generuje nowy. */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function fixIds(arr){ (arr||[]).forEach(o=>{ if(!o.id || !UUID_RE.test(String(o.id))) o.id = uid(); }); return arr; }
 const statusOf = k => STATUSES.find(s=>s.key===k) || STATUSES[0];
 const todayISO = () => new Date().toISOString().slice(0,10);
 function fmtDate(iso){ if(!iso) return ''; try{ return new Date(iso).toLocaleDateString('pl-PL',{day:'numeric',month:'short',year:'numeric'});}catch(e){return iso;} }
@@ -746,6 +757,40 @@ function socialIcons(i){
   return items ? `<div class="socials-row">${items}</div>` : '';
 }
 
+/* Wyciąga login/@handle z URL profilu (do pokazania na liście) */
+function handleFromUrl(url){
+  if(!url) return '';
+  try{
+    let p = String(url).replace(/^https?:\/\//,'').replace(/^www\./,'');
+    p = p.split('?')[0].replace(/\/$/,'');         // utnij parametry i końcowy /
+    const seg = p.split('/').filter(Boolean);
+    let last = seg[seg.length-1] || p;
+    last = last.replace(/^@/,'');
+    return last ? '@'+last : p;
+  }catch(e){ return url; }
+}
+
+/* Lista social media na profilu: ikona + login (klik) + liczba obserwujących */
+function socialListProfile(i){
+  const so=i.socials||{}, re=i.reach||{};
+  const defs=[
+    {k:'instagram',t:'Instagram',ico:'📷',bg:'#E1306C'},
+    {k:'tiktok',   t:'TikTok',   ico:'🎵',bg:'#111827'},
+    {k:'facebook', t:'Facebook', ico:'f', bg:'#1877F2'},
+    {k:'youtube',  t:'YouTube',  ico:'▶', bg:'#FF0000'},
+  ];
+  const rows=defs.filter(d=>so[d.k]).map(d=>{
+    const url=esc(so[d.k]); const handle=esc(handleFromUrl(so[d.k]));
+    const n=re[d.k]; const reachTxt = n ? `<b>${fmtNum(n)}</b> obs.` : '<span class="muted-mini">— brak liczby —</span>';
+    return `<div class="soc-line">
+      <a class="soc-ico" style="background:${d.bg}" href="${url}" target="_blank" rel="noopener" title="${d.t}">${d.ico}</a>
+      <a class="soc-handle" href="${url}" target="_blank" rel="noopener">${handle} ↗</a>
+      <div class="soc-reach">${reachTxt}</div>
+    </div>`;
+  }).join('');
+  return rows || '<div style="color:var(--muted);font-size:13px">Brak linków social.</div>';
+}
+
 function renderList(){
   const arr = filteredList();
   $('#count').textContent = `${arr.length} z ${state.influencers.length}`;
@@ -796,7 +841,6 @@ function renderProfile(id){
   const i = state.influencers.find(x=>x.id===id);
   if(!i){ backToDashboard(); return; }
   const st = statusOf(i.status);
-  const socials = PLATFORMS.filter(p=>(i.socials||{})[p.key]);
   const tr = totalReach(i);
 
   $('#profile').innerHTML = `
@@ -848,14 +892,12 @@ function renderProfile(id){
         </div>
 
         <div class="panel">
-          <h4 class="panel-title">🔗 Social media i zasięgi</h4>
-          ${socials.length?`<div class="socials" style="margin-bottom:${tr?'14px':'0'}">
-            ${socials.map(p=>`<a class="social-btn" href="${esc(i.socials[p.key])}" target="_blank" rel="noopener">
-              <span class="ic" style="background:${p.color}">${p.short}</span>${p.label} ↗</a>`).join('')}
-          </div>`:'<div style="color:var(--muted);font-size:13px;margin-bottom:'+(tr?'14px':'0')+'">Brak linków social.</div>'}
-          ${tr?`<div class="kv">
-            ${PLATFORMS.filter(p=>(i.reach||{})[p.key]).map(p=>`<div class="k">${p.label}</div><div><b>${fmtNum(i.reach[p.key])}</b> obserwujących</div>`).join('')}
-          </div>`:''}
+          <div class="panel-title" style="justify-content:space-between">
+            <span>🔗 Social media i zasięgi</span>
+            ${tr?`<span class="muted-mini">👥 ${fmtNum(tr)} łącznie</span>`:''}
+          </div>
+          <div class="soc-list">${socialListProfile(i)}</div>
+          <div class="muted-mini" style="margin-top:8px">Liczbę obserwujących wpisujesz w „Edytuj” → sekcja Zasięgi.</div>
         </div>
 
         <div class="panel">
@@ -1237,6 +1279,7 @@ $('#importFile').onchange = e=>{
   r.onload = ()=>{
     try{
       const arr=JSON.parse(r.result); if(!Array.isArray(arr)) throw 0;
+      fixIds(arr);  // napraw ewentualne złe ID, żeby baza je przyjęła
       // wczytaj do widoku (lokalnie) — zapis do chmury osobnym przyciskiem "Zapisz do chmury"
       state.influencers=arr; saveCache(); renderAll();
       const btn=$('#saveCloudBtn'); if(btn){ btn.style.display='inline-flex'; btn.textContent=`💾 Zapisz ${arr.length} do chmury`; }
@@ -1250,6 +1293,7 @@ $('#importFile').onchange = e=>{
 async function saveAllToCloud(){
   const c = client();
   if(!c){ toast('⚠ Brak połączenia z chmurą — zaloguj się'); return; }
+  fixIds(state.influencers); saveCache();  // napraw złe ID też dla danych z pamięci
   const btn=$('#saveCloudBtn'); if(btn){ btn.disabled=true; btn.textContent='Zapisywanie...'; }
   let ok=0, fail=0, firstErr='';
   for(const inf of state.influencers){
