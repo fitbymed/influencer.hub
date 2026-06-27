@@ -25,19 +25,16 @@ Tryb pełnego eksportu = zastąpienie. Kolumny: `Coupon, Date, Product, Quantity
 
 ## ⚠️ Bezpieczeństwo — WAŻNE (status: MVP do testów)
 
-Obecna wersja używa **jednego wspólnego hasła wpisanego w kod**. To świadomy
-kompromis na etap testowy i ma realne ograniczenia:
+Logowanie odbywa się przez **Supabase Auth** (e-mail + hasło). Hasła **nie ma w kodzie** —
+sprawdza je serwer Supabase. Dostęp do danych chroni **RLS**: czytać i pisać mogą
+wyłącznie zalogowani użytkownicy (`to authenticated`).
 
-- Plik jest publiczny (wymóg darmowego GitHub Pages), więc **hasło i klucz Supabase
-  są widoczne w kodzie** dla każdego, kto zajrzy do źródła.
-- Polityka RLS w bazie jest otwarta (`using (true)`), więc dane nie są twardo chronione
-  na poziomie bazy.
+Konta zakłada się ręcznie w panelu Supabase (Authentication → Users). Publiczna
+rejestracja jest wyłączona — nikt obcy nie założy sobie konta sam. Dzięki temu repo
+może być publiczne (potrzebne dla darmowego GitHub Pages) bez ryzyka dla danych:
+nawet znając klucz `anon` z kodu, bez zalogowania nie odczyta się nic z bazy.
 
-**Przed wpuszczeniem prawdziwych danych influencerów (RODO) należy:**
-1. Przejść na **Supabase Auth** (konto e-mail + hasło, weryfikowane przez serwer).
-2. Zamknąć RLS na `authenticated` (tylko zalogowani czytają/piszą).
-
-Do tego czasu: trzymaj link i hasło w wąskim gronie i nie wprowadzaj wrażliwych danych.
+Dodanie/odebranie dostępu = dodanie/usunięcie użytkownika w Authentication → Users.
 
 ## Plik źródłowy
 
