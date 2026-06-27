@@ -134,6 +134,23 @@
   .row-meta .mi{display:inline-flex;align-items:center;gap:4px}
   .kod{background:var(--orange-lt);color:var(--brand-2);border:1px solid #3a2418;border-radius:6px;
        padding:2px 8px;font-weight:800;font-size:11px;letter-spacing:.3px}
+  /* Kolumny social na wierszu listy */
+  .scols{display:flex;gap:8px;flex-shrink:0}
+  .scol{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:62px;
+        padding:8px 9px;border:1px solid var(--border-soft);border-radius:11px;background:var(--bg-input);
+        text-decoration:none;transition:.12s}
+  .scol:hover{border-color:var(--brand);background:var(--bg-card-hover)}
+  .scol-ico{width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+            color:#fff;font-size:13px;font-weight:800}
+  .scol-handle{font-size:11px;color:var(--text-2);max-width:72px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .scol-foll{font-size:13px;font-weight:700;color:var(--text);font-family:var(--font-num)}
+  /* 5. kolumna: dane indywidualne */
+  .row-indiv{display:flex;flex-direction:column;align-items:flex-end;gap:3px;min-width:120px;flex-shrink:0;text-align:right}
+  .ri-sales{font-size:17px;font-weight:700;color:var(--pos);font-family:var(--font-num);line-height:1}
+  .ri-sub{font-size:12px;color:var(--text-muted)}
+  .ri-nosale{font-size:12.5px;font-weight:600;color:var(--text-muted)}
+  .ri-reach{font-size:12px;color:var(--text-muted)} .ri-reach b{color:var(--text)}
+  .ri-kod{margin-top:2px}
   .socials-row{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
   .soc-ico{width:26px;height:26px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;
            text-decoration:none;color:#fff;font-size:13px;transition:.12s;opacity:.92}
@@ -335,7 +352,10 @@
     .pipe-sep{display:none}
     .pipe-funnel,.pipe-side{flex-wrap:wrap;width:100%}
     .pipe-funnel .stat,.pipe-side .stat{flex:1 1 calc(50% - 5px);min-width:0}
-    .row{padding:12px 14px;gap:10px}
+    .row{padding:12px 14px;gap:10px;flex-wrap:wrap}
+    .row-main{flex:1 1 100%}
+    .scols{flex-wrap:wrap}
+    .row-indiv{align-items:flex-start;min-width:0}
   }
 </style>
 </head>
@@ -867,6 +887,27 @@ function socialListProfile(i){
   return rows || '<div style="color:var(--muted);font-size:13px">Brak linków social.</div>';
 }
 
+/* Kolumny social na wierszu listy: ikona + login + liczba followersów (tylko te, które ma) */
+function socialCols(i){
+  const so=i.socials||{}, re=i.reach||{};
+  const defs=[
+    {k:'instagram',t:'IG',ico:'📷',bg:'#E4405F'},
+    {k:'tiktok',   t:'TT',ico:'🎵',bg:'#16181C'},
+    {k:'facebook', t:'FB',ico:'f', bg:'#1877F2'},
+    {k:'youtube',  t:'YT',ico:'▶', bg:'#FF2D2D'},
+  ];
+  const cols = defs.filter(d=>so[d.k]).map(d=>{
+    const url=esc(so[d.k]); const handle=esc(handleFromUrl(so[d.k]));
+    const n=re[d.k]; const followers = n ? fmtCompact(n) : '—';
+    return `<a class="scol" href="${url}" target="_blank" rel="noopener" title="${esc(so[d.k])}" onclick="event.stopPropagation()">
+      <span class="scol-ico" style="background:${d.bg}">${d.ico}</span>
+      <span class="scol-handle">${handle}</span>
+      <span class="scol-foll">${followers}</span>
+    </a>`;
+  }).join('');
+  return cols ? `<div class="scols">${cols}</div>` : '';
+}
+
 function renderList(){
   const arr = filteredList();
   $('#count').textContent = `${arr.length} z ${state.influencers.length}`;
@@ -894,20 +935,20 @@ function renderList(){
     return `<div class="row" data-action="open" data-id="${i.id}">
       <div class="avatar" style="background:${st.color}">${esc(initials(i.name))}</div>
       <div class="row-main">
-        <div class="row-name">${esc(i.name)} <span class="badge" style="background:${st.color}22;color:${st.color}">${st.label}</span></div>
+        <div class="row-name">${esc(i.name)} <span class="badge" style="color:${st.color}">${st.label}</span></div>
         <div class="row-sub">
           ${i.niche?`<span>🎯 ${esc(i.niche)}</span>`:''}
           <span class="tags">${(i.tags||[]).slice(0,3).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</span>
         </div>
         ${meta?`<div class="row-meta">${meta}</div>`:''}
       </div>
-      <div class="row-right">
-        ${socialIcons(i)}
-        ${split?`<div class="reach-split">${split}</div>`:''}
-        ${tr?`<div class="reach" style="margin-top:6px">Σ&nbsp;<b>${fmtNum(tr)}</b></div>`:''}
+      ${socialCols(i)}
+      <div class="row-indiv">
         ${hasSold(i)
-          ? `<div class="sales-pill" style="margin-top:6px">💰 ${fmtPLN(revenueOf(i))} · ${fmtNum(qtyOf(i))} szt.</div>`
-          : `<div class="no-sale" style="margin-top:6px">— brak sprzedaży</div>`}
+          ? `<div class="ri-sales">${fmtPLN(revenueOf(i))}</div><div class="ri-sub">${fmtNum(qtyOf(i))} szt.</div>`
+          : `<div class="ri-nosale">— brak sprzedaży</div>`}
+        ${tr?`<div class="ri-reach">Σ zasięg <b>${fmtNum(tr)}</b></div>`:''}
+        ${i.discountCode?`<div class="ri-kod"><span class="kod">🎟️ ${esc(i.discountCode)}</span></div>`:''}
       </div>
     </div>`;
   }).join('');
