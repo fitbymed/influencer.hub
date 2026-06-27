@@ -106,6 +106,10 @@
   .row-meta .mi{display:inline-flex;align-items:center;gap:4px}
   .kod{background:var(--orange-lt);color:var(--orange-dk);border:1px solid #FAD9C5;border-radius:6px;
        padding:2px 8px;font-weight:800;font-size:11px;letter-spacing:.3px}
+  .socials-row{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
+  .soc-ico{width:26px;height:26px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;
+           text-decoration:none;color:#fff;font-size:13px;transition:.12s;opacity:.92}
+  .soc-ico:hover{opacity:1;transform:translateY(-1px)}
   .reach-split{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
   .rs{display:flex;flex-direction:column;align-items:flex-end;line-height:1.15}
   .rs b{font-size:13.5px;color:var(--ink)}
@@ -372,8 +376,7 @@
     <form id="form">
       <input type="hidden" id="f_id">
       <div class="form-grid">
-        <div class="field"><label>Pseudonim / nazwa *</label><input id="f_name" required placeholder="np. fit.kasia"></div>
-        <div class="field"><label>Imię i nazwisko</label><input id="f_realName" placeholder="Katarzyna Nowak"></div>
+        <div class="field"><label>Imię i nazwisko *</label><input id="f_realName" required placeholder="Katarzyna Nowak"></div>
         <div class="field"><label>Email (do pisania maili)</label><input id="f_email" type="email" placeholder="kontakt@..."></div>
         <div class="field"><label>Telefon</label><input id="f_phone" placeholder="+48 ..."></div>
         <div class="field"><label>Status</label><select id="f_status"></select></div>
@@ -721,6 +724,22 @@ function filteredList(){
   return arr;
 }
 
+/* Ikonki sociali (klikalne) — po prawej na karcie */
+function socialIcons(i){
+  const so = i.socials||{};
+  const defs = [
+    {k:'instagram', t:'Instagram', ico:'📷', bg:'#E1306C'},
+    {k:'tiktok',    t:'TikTok',    ico:'🎵', bg:'#111827'},
+    {k:'facebook',  t:'Facebook',  ico:'f',  bg:'#1877F2'},
+    {k:'youtube',   t:'YouTube',   ico:'▶',  bg:'#FF0000'},  // opcjonalnie
+  ];
+  const items = defs.filter(d=>so[d.k]).map(d=>{
+    const url = esc(so[d.k]);
+    return `<a class="soc-ico" style="background:${d.bg}" href="${url}" target="_blank" rel="noopener" title="${d.t}" onclick="event.stopPropagation()">${d.ico}</a>`;
+  }).join('');
+  return items ? `<div class="socials-row">${items}</div>` : '';
+}
+
 function renderList(){
   const arr = filteredList();
   $('#count').textContent = `${arr.length} z ${state.influencers.length}`;
@@ -751,13 +770,13 @@ function renderList(){
       <div class="row-main">
         <div class="row-name">${esc(i.name)} <span class="badge" style="background:${st.color}22;color:${st.color}">${st.label}</span></div>
         <div class="row-sub">
-          ${i.realName?`<span>${esc(i.realName)}</span>`:''}
           ${i.niche?`<span>🎯 ${esc(i.niche)}</span>`:''}
           <span class="tags">${(i.tags||[]).slice(0,3).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</span>
         </div>
         ${meta?`<div class="row-meta">${meta}</div>`:''}
       </div>
       <div class="row-right">
+        ${socialIcons(i)}
         ${split?`<div class="reach-split">${split}</div>`:''}
         ${tr?`<div class="reach" style="margin-top:6px">Σ&nbsp;<b>${fmtNum(tr)}</b></div>`:''}
         ${hasSold(i)
@@ -960,7 +979,7 @@ function openModal(inf){
   $('#modalTitle').textContent = inf? 'Edytuj influencera' : 'Nowy influencer';
   const s = inf || {};
   $('#f_id').value = s.id||'';
-  $('#f_name').value = s.name||''; $('#f_realName').value=s.realName||''; $('#f_email').value=s.email||''; $('#f_phone').value=s.phone||'';
+  $('#f_realName').value = s.realName||s.name||''; $('#f_email').value=s.email||''; $('#f_phone').value=s.phone||'';
   $('#f_status').value = s.status||'weryfikacja';
   $('#f_niche').value=s.niche||''; $('#f_tags').value=(s.tags||[]).join(', ');
   $('#f_discount').value=s.discountCode||''; $('#f_sales').value=s.sales||'';
@@ -969,7 +988,7 @@ function openModal(inf){
   $('#f_brief').value=s.brief||''; $('#f_rates').value=s.rates||''; $('#f_notes').value=s.notes||'';
   $('#f_nextText').value=s.nextStepText||''; $('#f_nextDate').value=s.nextStepDate||'';
   $('#modal').classList.add('show');
-  setTimeout(()=>$('#f_name').focus(),50);
+  setTimeout(()=>$('#f_realName').focus(),50);
 }
 function closeModal(){ $('#modal').classList.remove('show'); uiBusy=$('#profile').classList.contains('show'); flushReload(); }
 
@@ -983,7 +1002,7 @@ $('#form').addEventListener('submit', async e=>{
   const tags = $('#f_tags').value.split(',').map(t=>t.trim()).filter(Boolean);
   const inf = Object.assign({}, existing, {
     id: id || uid(),
-    name: $('#f_name').value.trim(),
+    name: $('#f_realName').value.trim(),
     realName: $('#f_realName').value.trim(),
     email: $('#f_email').value.trim(),
     phone: $('#f_phone').value.trim(),
