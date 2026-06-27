@@ -13,7 +13,7 @@
     /* === Dark Command — paleta === */
     --bg-app:#0B0E14; --bg-panel:#0E121B; --bg-card:#10151E; --bg-card-hover:#141B27;
     --bg-input:#141A25; --border:#202836; --border-soft:#1A2130; --border-input:#232B3A;
-    --text:#EEF1F6; --text-2:#A8B0BF; --text-muted:#7A8499; --text-faint:#5E6880;
+    --text:#FFFFFF; --text-2:#C7CEDA; --text-muted:#9AA4B5; --text-faint:#828DA3;
     --brand:#F0541C; --brand-2:#FF8A4C; --brand-grad:linear-gradient(135deg,#FF8A4C,#F0541C);
     --pos:#4ADE80;
     /* status (jaśniejsze warianty na ciemnym) */
@@ -151,7 +151,7 @@
   .rs b{font-size:13.5px;color:var(--text)}
   .rs span{font-size:9.5px;font-weight:800;color:var(--text-faint);letter-spacing:.5px}
   .sales-pill{font-size:17px;font-weight:700;color:var(--pos);background:transparent;border-radius:0;padding:0;font-family:var(--font-num)}
-  .no-sale{font-size:12.5px;font-weight:500;color:var(--text-faint)}
+  .no-sale{font-size:12.5px;font-weight:600;color:var(--text-muted)}
   .muted-mini{font-size:12px;color:var(--text-muted)}
   /* panel sprzedaży */
   .kpis3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px}
@@ -176,7 +176,11 @@
   .empty h2{color:var(--text);margin:0 0 6px;font-size:18px}
 
   /* ---------- Metryki (pasek u góry dashboardu) ---------- */
-  .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+  .metrics{display:grid;gap:14px;margin-bottom:14px}
+  .metrics-3{grid-template-columns:repeat(3,1fr)}
+  .metrics-reach{grid-template-columns:repeat(4,1fr);margin-bottom:18px}
+  .metric-reach .mv{font-size:23px}
+  .plat-ic{color:#fff;font-weight:800;font-size:13px}
   .metric{background:var(--bg-card);border:1px solid var(--border);border-radius:16px;
           padding:17px 18px;box-shadow:var(--shadow)}
   .metric .ml{font-size:12.5px;color:var(--text-muted);font-weight:600;margin-bottom:10px}
@@ -366,14 +370,15 @@
   </div>
   <div class="top-actions">
     <span id="connPill" class="conn-pill"><span id="connDot" class="dot"></span><span id="connText">Tryb lokalny</span></span>
-    <button class="btn btn-ghost btn-sm" id="settingsBtn" title="Ustawienia i chmura">⚙︎</button>
+    <button class="btn btn-ghost" id="settingsBtn" title="Ustawienia i chmura" style="font-size:20px;padding:7px 11px;line-height:1">⚙︎</button>
     <button class="btn btn-ghost btn-sm" id="logoutBtn" title="Wyloguj" onclick="logout()">Wyloguj</button>
     <button class="btn btn-primary" id="addBtn">+ Influencer</button>
   </div>
 </div>
 
 <main id="dashboard" class="wrap">
-  <div class="metrics" id="metrics"></div>
+  <div class="metrics metrics-3" id="metrics"></div>
+  <div class="metrics metrics-reach" id="metricsReach"></div>
   <div class="pipeline" id="pipeline"></div>
   <div id="attention"></div>
 
@@ -532,12 +537,12 @@ const LS_DATA = 'fbm_crm_influencers';
 const LS_CFG  = 'fbm_crm_config';
 
 const STATUSES = [
-  {key:'nowy',        label:'Nowy',         color:'#A78BFA'},
-  {key:'weryfikacja', label:'Weryfikacja',  color:'#8A93A4'},
-  {key:'odrzucony',   label:'Odrzuceni',    color:'#F87171'},
-  {key:'negocjacje',  label:'Negocjacje',   color:'#E0A93B'},
-  {key:'wspolpraca',  label:'Aktywni',      color:'#22C55E'},
-  {key:'zakonczona',  label:'Zakończone',   color:'#60A5FA'},
+  {key:'nowy',        label:'Nowy',         color:'#B794FF'},
+  {key:'weryfikacja', label:'Weryfikacja',  color:'#AEB8C9'},
+  {key:'odrzucony',   label:'Odrzuceni',    color:'#FF6B6B'},
+  {key:'negocjacje',  label:'Negocjacje',   color:'#FFB938'},
+  {key:'wspolpraca',  label:'Aktywni',      color:'#3DDC7A'},
+  {key:'zakonczona',  label:'Zakończone',   color:'#5BA8FF'},
 ];
 const DEFAULT_STATUS = 'nowy';
 
@@ -704,21 +709,36 @@ async function persistDelete(id){
 function renderAll(){ updateConn(); renderMetrics(); renderPipeline(); renderAttention(); renderList(); if(state.openId) renderProfile(state.openId); }
 
 function renderMetrics(){
-  const arr = state.influencers, today = todayISO();
-  // Łączny zasięg liczymy tylko z aktywnych współprac
-  const reach   = arr.filter(i=>i.status==='wspolpraca').reduce((a,i)=>a+totalReach(i),0);
+  const arr = state.influencers;
+  const active = arr.filter(i=>i.status==='wspolpraca');   // tylko aktywne współprace
   const revenue = arr.reduce((a,i)=>a+revenueOf(i),0);
   const units   = arr.reduce((a,i)=>a+qtyOf(i),0);
   const sold    = arr.filter(hasSold).length;
+
+  // Górny rząd: 3 karty
   const cards = [
-    {ic:'💰', bg:'#DCFCE7', v:fmtPLN(revenue), l:'Obrót z afiliacji'},
-    {ic:'🎟️', bg:'var(--orange-lt)', v:fmtNum(units), l:'Sprzedanych szt.'},
-    {ic:'✅', bg:'#EEF2FF', v:`${sold} / ${arr.length}${arr.length?` (${Math.round(sold/arr.length*100)}%)`:''}`, l:'Influencerów ze sprzedażą'},
-    {ic:'👥', bg:'#F1F2F4', v:fmtNum(reach), l:'Zasięg aktywnych współprac'},
+    {ic:'💰', v:fmtPLN(revenue), l:'Obrót z afiliacji'},
+    {ic:'🎟️', v:fmtNum(units), l:'Sprzedanych szt.'},
+    {ic:'✅', v:`${sold} / ${arr.length}${arr.length?` (${Math.round(sold/arr.length*100)}%)`:''}`, l:'Influencerów ze sprzedażą'},
   ];
   $('#metrics').innerHTML = cards.map(m=>`<div class="metric">
-    <div class="mtop"><div class="mv">${m.v}</div><div class="badge-ic" style="background:${m.bg}">${m.ic}</div></div>
-    <div class="ml">${m.l}</div></div>`).join('');
+    <div class="ml">${m.l}</div>
+    <div class="mtop"><div class="mv">${m.v}</div><div class="badge-ic">${m.ic}</div></div>
+    </div>`).join('');
+
+  // Drugi rząd: zasięg per platforma (z aktywnych współprac)
+  const sumReach = k => active.reduce((a,i)=>a+(Number((i.reach||{})[k])||0),0);
+  const plats = [
+    {k:'instagram', l:'Instagram', bg:'#E4405F', ic:'📷'},
+    {k:'tiktok',    l:'TikTok',    bg:'#16181C', ic:'🎵'},
+    {k:'facebook',  l:'Facebook',  bg:'#1877F2', ic:'f'},
+    {k:'youtube',   l:'YouTube',   bg:'#FF2D2D', ic:'▶'},
+  ];
+  $('#metricsReach').innerHTML = plats.map(p=>`<div class="metric metric-reach">
+    <div class="ml">Zasięg ${p.l}</div>
+    <div class="mtop"><div class="mv">${fmtNum(sumReach(p.k))}</div>
+      <div class="badge-ic plat-ic" style="background:${p.bg}">${p.ic}</div></div>
+    </div>`).join('');
 }
 
 function renderPipeline(){
