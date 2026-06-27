@@ -59,8 +59,14 @@
   /* ---------- Layout ---------- */
   .wrap{max-width:1180px;margin:0 auto;padding:22px 20px 80px}
 
-  .pipeline{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
-  .stat{flex:1;min-width:120px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  .pipeline{display:flex;gap:14px;flex-wrap:wrap;align-items:stretch;margin-bottom:18px}
+  .pipe-funnel{display:flex;gap:6px;align-items:center;flex:1;min-width:0;flex-wrap:wrap}
+  .pipe-side{display:flex;gap:8px;align-items:stretch}
+  .pipe-sep{width:1px;background:var(--line-dk);align-self:stretch;margin:2px 0}
+  .pipe-arrow{color:var(--muted);font-size:18px;font-weight:700;flex-shrink:0;user-select:none}
+  .pipe-funnel .stat{flex:1}
+  .pipe-side .stat{flex:none;min-width:120px}
+  .stat{min-width:110px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
         padding:12px 14px;box-shadow:var(--shadow);cursor:pointer;transition:.12s;position:relative;overflow:hidden}
   .stat:hover{border-color:var(--line-dk);transform:translateY(-1px)}
   .stat.active{border-color:var(--orange);box-shadow:0 0 0 2px var(--orange-lt)}
@@ -670,7 +676,8 @@ function renderAll(){ updateConn(); renderMetrics(); renderPipeline(); renderAtt
 
 function renderMetrics(){
   const arr = state.influencers, today = todayISO();
-  const reach   = arr.reduce((a,i)=>a+totalReach(i),0);
+  // Łączny zasięg liczymy tylko z aktywnych współprac
+  const reach   = arr.filter(i=>i.status==='wspolpraca').reduce((a,i)=>a+totalReach(i),0);
   const revenue = arr.reduce((a,i)=>a+revenueOf(i),0);
   const units   = arr.reduce((a,i)=>a+qtyOf(i),0);
   const sold    = arr.filter(hasSold).length;
@@ -678,7 +685,7 @@ function renderMetrics(){
     {ic:'💰', bg:'#DCFCE7', v:fmtPLN(revenue), l:'Obrót z afiliacji'},
     {ic:'🎟️', bg:'var(--orange-lt)', v:fmtNum(units), l:'Sprzedanych szt.'},
     {ic:'✅', bg:'#EEF2FF', v:`${sold} / ${arr.length}`, l:'Influencerów ze sprzedażą'},
-    {ic:'👥', bg:'#F1F2F4', v:fmtNum(reach), l:'Łączny zasięg'},
+    {ic:'👥', bg:'#F1F2F4', v:fmtNum(reach), l:'Zasięg aktywnych współprac'},
   ];
   $('#metrics').innerHTML = cards.map(m=>`<div class="metric">
     <div class="mtop"><div class="mv">${m.v}</div><div class="badge-ic" style="background:${m.bg}">${m.ic}</div></div>
@@ -687,15 +694,35 @@ function renderMetrics(){
 
 function renderPipeline(){
   const total = state.influencers.length;
-  let html = `<div class="stat ${state.filterStatus===''?'active':''}" data-action="filter-status" data-status="">
-      <div class="num">${total}</div><div class="lbl">Wszyscy</div></div>`;
-  STATUSES.forEach(s=>{
-    const n = state.influencers.filter(i=>i.status===s.key).length;
-    html += `<div class="stat ${state.filterStatus===s.key?'active':''}" data-action="filter-status" data-status="${s.key}">
-      <span class="bar" style="background:${s.color}"></span>
-      <div class="num">${n}</div><div class="lbl">${s.label}</div></div>`;
-  });
-  $('#pipeline').innerHTML = html;
+  const cnt = k => state.influencers.filter(i=>i.status===k).length;
+  const statTile = (status,label,color)=>{
+    const active = state.filterStatus===status ? 'active' : '';
+    const n = status==='' ? total : cnt(status);
+    const bar = color ? `<span class="bar" style="background:${color}"></span>` : '';
+    return `<div class="stat ${active}" data-action="filter-status" data-status="${status}">
+      ${bar}<div class="num">${n}</div><div class="lbl">${label}</div></div>`;
+  };
+  const S = Object.fromEntries(STATUSES.map(s=>[s.key,s]));
+  const arrow = `<div class="pipe-arrow">→</div>`;
+
+  // Lejek (lewa strona) ze strzałkami
+  const funnel = [
+    statTile('', 'Wszyscy', null),
+    statTile('weryfikacja', S.weryfikacja.label, S.weryfikacja.color),
+    statTile('negocjacje',  S.negocjacje.label,  S.negocjacje.color),
+    statTile('wspolpraca',  S.wspolpraca.label,  S.wspolpraca.color),
+  ].join(arrow);
+
+  // Osobno (prawa strona): Zakończone | Odrzucone
+  const side = [
+    statTile('zakonczona', S.zakonczona.label, S.zakonczona.color),
+    statTile('odrzucony',  S.odrzucony.label,  S.odrzucony.color),
+  ].join('');
+
+  $('#pipeline').innerHTML =
+    `<div class="pipe-funnel">${funnel}</div>
+     <div class="pipe-sep"></div>
+     <div class="pipe-side">${side}</div>`;
 }
 
 function renderAttention(){
