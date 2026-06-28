@@ -7,34 +7,41 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    /* === Dark Command — paleta === */
-    --bg-app:#0B0E14; --bg-panel:#0E121B; --bg-card:#10151E; --bg-card-hover:#141B27;
-    --bg-input:#141A25; --border:#202836; --border-soft:#1A2130; --border-input:#232B3A;
-    --text:#FFFFFF; --text-2:#C7CEDA; --text-muted:#9AA4B5; --text-faint:#828DA3;
-    --brand:#F0541C; --brand-2:#FF8A4C; --brand-grad:linear-gradient(135deg,#FF8A4C,#F0541C);
-    --pos:#4ADE80;
-    /* status (jaśniejsze warianty na ciemnym) */
-    --st-nowy:#A78BFA; --st-wery:#8A93A4; --st-odrzucony:#F87171;
-    --st-negocjacje:#E0A93B; --st-aktywni:#22C55E; --st-zakonczone:#60A5FA;
+    /* === solo.app — paleta (dark glass + gradient) === */
+    --bg-app:#0a0a12; --bg-panel:rgba(12,12,22,.7); --bg-card:rgba(255,255,255,.035); --bg-card-hover:rgba(255,255,255,.06);
+    --bg-input:rgba(255,255,255,.045); --border:rgba(255,255,255,.09); --border-soft:rgba(255,255,255,.06); --border-input:rgba(255,255,255,.14);
+    --text:#f4f4fb; --text-2:#c4c4d6; --text-muted:#9c9cb4; --text-faint:#6e6e88;
+    --accent:#ff6a2b; --accent-2:#ff9a3d; --violet:#7b5cff; --pink:#ff4d8d;
+    --grad:linear-gradient(135deg,#ff6a2b 0%,#ff4d8d 52%,#7b5cff 100%);
+    --grad-soft:linear-gradient(135deg,rgba(255,106,43,.18),rgba(123,92,255,.18));
+    --pos:#28c840;
+    /* status */
+    --st-nowy:#a78bff; --st-wery:#9c9cb4; --st-odrzucony:#ff5d7a;
+    --st-negocjacje:#ff9a3d; --st-aktywni:#28c840; --st-zakonczone:#5aa8ff;
 
-    /* === mostki do istniejących nazw zmiennych (cały kod używa tych) === */
-    --orange:#F0541C; --orange-dk:#FF8A4C; --orange-lt:rgba(244,99,30,.16);
+    /* === mostki do istniejących nazw zmiennych === */
+    --brand:#ff6a2b; --brand-2:#ff9a3d; --brand-grad:var(--grad);
+    --orange:#ff6a2b; --orange-dk:#ff9a3d; --orange-lt:var(--grad-soft);
     --bg:var(--bg-app); --card:var(--bg-card); --ink:var(--text); --muted:var(--text-muted);
     --line:var(--border); --line-dk:var(--border-input);
     --shadow:0 1px 2px rgba(0,0,0,.4);
-    --shadow-lg:0 18px 50px rgba(0,0,0,.55);
-    --radius:16px;
+    --shadow-lg:0 40px 80px -30px rgba(0,0,0,.8);
+    --radius:18px;
+    --ease:cubic-bezier(.2,.7,.2,1);
     --font-num:"Space Grotesk",ui-monospace,monospace;
   }
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
   body{
-    font-family:"Plus Jakarta Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-family:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
     background:var(--bg-app); color:var(--text); font-size:14px; line-height:1.5;
     -webkit-font-smoothing:antialiased;
+    background-image:radial-gradient(900px 500px at 15% -5%,rgba(255,106,43,.07),transparent 60%),
+                     radial-gradient(900px 600px at 100% 0%,rgba(123,92,255,.08),transparent 55%);
+    background-attachment:fixed;
   }
   button{font-family:inherit;cursor:pointer}
   input,select,textarea{font-family:inherit;font-size:14px}
@@ -44,14 +51,16 @@
 
   /* ---------- Topbar ---------- */
   .topbar{
-    position:sticky;top:0;z-index:30;background:var(--bg-panel);border-bottom:1px solid var(--border);
+    position:sticky;top:0;z-index:30;background:var(--bg-panel);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);
     display:flex;align-items:center;gap:14px;padding:10px 20px;flex-wrap:wrap;
   }
   .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:16px;letter-spacing:-.2px}
-  .logo{width:38px;height:38px;border-radius:11px;background:var(--brand-grad);
-        display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:17px;flex-shrink:0;
-        box-shadow:0 0 18px rgba(240,84,28,.45)}
-  .brand small{font-weight:600;color:var(--text-muted);font-size:11px}
+  .logo{width:38px;height:38px;border-radius:12px;background:var(--grad);
+        display:flex;align-items:center;justify-content:center;color:#0a0a12;font-weight:900;font-size:17px;flex-shrink:0;
+        box-shadow:0 8px 26px -8px rgba(255,77,141,.6)}
+  .brand{color:var(--text)}
+  .brand b,.brand>div>div:first-child{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .brand small{font-weight:600;color:var(--text-muted);font-size:11px;-webkit-text-fill-color:var(--text-muted)}
   .search{flex:1;min-width:180px;position:relative}
   .search input{width:100%;padding:10px 12px 10px 34px;border:1px solid var(--border-input);border-radius:11px;background:var(--bg-input);color:var(--text);outline:none}
   .search input::placeholder{color:var(--text-faint)}
@@ -59,13 +68,14 @@
   .search svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-muted)}
   .top-actions{display:flex;align-items:center;gap:8px}
 
-  .btn{display:inline-flex;align-items:center;gap:6px;padding:9px 14px;border-radius:11px;border:1px solid var(--border-input);
-       background:var(--bg-input);color:var(--text);font-weight:600;font-size:13px;white-space:nowrap;transition:.12s}
-  .btn:hover{background:var(--bg-card-hover);border-color:#2c3850}
-  .btn-primary{background:var(--brand-grad);border-color:transparent;color:#fff;box-shadow:0 0 16px rgba(240,84,28,.4)}
-  .btn-primary:hover{filter:brightness(1.06)}
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:9px 14px;border-radius:12px;border:1px solid var(--border);
+       background:var(--bg-card);color:var(--text);font-weight:600;font-size:13px;white-space:nowrap;
+       transition:transform .25s var(--ease),box-shadow .25s var(--ease),background .25s,border-color .25s}
+  .btn:hover{background:var(--bg-card-hover);border-color:var(--border-input);transform:translateY(-2px)}
+  .btn-primary{background:var(--grad);border-color:transparent;color:#0a0a12;font-weight:700;box-shadow:0 8px 30px -8px rgba(255,77,141,.55)}
+  .btn-primary:hover{transform:translateY(-2px);box-shadow:0 14px 40px -8px rgba(255,77,141,.7)}
   .btn-ghost{border-color:transparent;background:transparent;color:var(--text-2)}
-  .btn-ghost:hover{background:var(--bg-card-hover)}
+  .btn-ghost:hover{background:var(--bg-card-hover);transform:translateY(-2px)}
   .btn-danger{color:#F87171;border-color:#5a2a2a;background:rgba(248,113,113,.08)}
   .btn-danger:hover{background:rgba(248,113,113,.16)}
   .btn-sm{padding:6px 10px;font-size:12px}
@@ -85,11 +95,12 @@
   .pipe-arrow{color:var(--text-faint);font-size:18px;font-weight:700;flex-shrink:0;user-select:none}
   .pipe-funnel .stat{flex:1}
   .pipe-side .stat{flex:none;min-width:120px}
-  .stat{min-width:110px;background:var(--bg-card);border:1px solid var(--border);border-radius:13px;
-        padding:10px 15px;cursor:pointer;transition:.12s;position:relative;overflow:hidden;
-        display:flex;align-items:center;gap:9px}
-  .stat:hover{border-color:var(--border-input);background:var(--bg-card-hover)}
-  .stat.active{border-color:var(--brand);background:var(--orange-lt)}
+  .stat{min-width:110px;background:var(--bg-card);border:1px solid var(--border);border-radius:14px;
+        padding:11px 16px;cursor:pointer;position:relative;overflow:hidden;backdrop-filter:blur(8px);
+        display:flex;align-items:center;gap:9px;
+        transition:transform .25s var(--ease),border-color .25s,background .25s}
+  .stat:hover{border-color:var(--border-input);background:var(--bg-card-hover);transform:translateY(-2px)}
+  .stat.active{border-color:transparent;background:var(--grad-soft);box-shadow:0 0 0 1px rgba(255,106,43,.4)}
   .stat .num{font-size:17px;font-weight:700;line-height:1}
   .stat .lbl{font-size:12.5px;color:var(--text-2);font-weight:600}
   .stat .bar{display:none}
@@ -111,7 +122,7 @@
   .count{font-size:12px;color:var(--text-muted);font-weight:600}
 
   /* ---------- List (panel-tabela) ---------- */
-  .list{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+  .list{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;backdrop-filter:blur(10px)}
   .row{display:flex;align-items:center;gap:16px;background:transparent;border:0;
        border-bottom:1px solid var(--border-soft);border-radius:0;padding:14px 20px;cursor:pointer;transition:.12s}
   .row:last-child{border-bottom:0}
@@ -196,10 +207,13 @@
   .metrics{display:grid;gap:14px;margin-bottom:14px}
   .metrics-3{grid-template-columns:repeat(3,1fr)}
   .metrics-reach{grid-template-columns:repeat(4,1fr);margin-bottom:18px}
-  .metric-reach .mv{font-size:23px}
+  .metric-reach .mv{font-size:24px}
   .plat-ic{color:#fff;font-weight:800;font-size:13px}
-  .metric{background:var(--bg-card);border:1px solid var(--border);border-radius:16px;
-          padding:17px 18px;box-shadow:var(--shadow)}
+  /* liczby KPI namalowane gradientem (sygnatura solo.app) */
+  .metric .mv{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent!important}
+  .metric{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);
+          padding:18px 20px;backdrop-filter:blur(10px);transition:transform .25s var(--ease),border-color .25s}
+  .metric:hover{transform:translateY(-2px);border-color:var(--border-input)}
   .metric .ml{font-size:12.5px;color:var(--text-muted);font-weight:600;margin-bottom:10px}
   .metric .mtop{display:flex;align-items:center;justify-content:space-between;gap:8px}
   .metric .mv{font-size:29px;font-weight:700;line-height:1;font-family:var(--font-num);color:var(--text)}
@@ -212,11 +226,11 @@
   .profile-page.show{display:block;animation:fadeIn .18s ease}
   @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
   .back-bar{display:flex;align-items:center;gap:8px;margin-bottom:14px}
-  .profile-hero{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);
-                box-shadow:var(--shadow);padding:20px 22px;display:flex;gap:18px;align-items:flex-start;margin-bottom:16px}
+  .profile-hero{background:var(--grad-soft);border:1px solid var(--border-input);border-radius:var(--radius-lg,22px);
+                backdrop-filter:blur(10px);padding:22px 24px;display:flex;gap:18px;align-items:flex-start;margin-bottom:16px}
   .profile-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:16px;align-items:start}
   .panel{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);
-         box-shadow:var(--shadow);padding:18px 20px;margin-bottom:16px}
+         backdrop-filter:blur(10px);padding:18px 20px;margin-bottom:16px}
   .panel:last-child{margin-bottom:0}
   .panel-title{font-size:13px;font-weight:800;margin:0 0 14px;display:flex;align-items:center;gap:7px;color:var(--text)}
   @media(max-width:860px){.profile-grid{grid-template-columns:1fr}}
