@@ -325,10 +325,10 @@
 
   /* ---------- Modal ---------- */
   .modal{position:fixed;inset:0;z-index:60;display:none;align-items:flex-start;justify-content:center;
-         padding:40px 16px;overflow-y:auto;background:rgba(0,0,0,.8);backdrop-filter:blur(4px)}
+         padding:40px 16px;overflow-y:auto;background:rgba(5,5,10,.94);backdrop-filter:blur(10px)}
   .modal.show{display:flex}
   .modal-card{background:#13131f;border:1px solid var(--border-input);border-radius:18px;box-shadow:var(--shadow-lg);width:100%;max-width:620px;
-              padding:22px 24px;animation:pop .18s ease}
+              padding:22px 24px;animation:pop .18s ease;isolation:isolate}
   @keyframes pop{from{transform:translateY(10px) scale(.98);opacity:0}to{transform:none;opacity:1}}
   .modal-card h2{margin:0 0 18px;font-size:18px;color:var(--text)}
   .modal-foot{display:flex;justify-content:flex-end;gap:8px;margin-top:8px;padding-top:16px;border-top:1px solid var(--border)}
